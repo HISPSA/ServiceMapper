@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+	<title>Focus for Impact: OrgRegistry v0.1</title>
+
+	<link rel="icon" href="img/sanaclogo.png">
+
+
+    <link rel="stylesheet" type="text/css" href="css/leaflet.css" />
+	<link rel="stylesheet" type="text/css" href="css/font-awesome.css">
+	<link rel="stylesheet" type="text/css" href="css/bootstrap.min.css">
+	<link rel="stylesheet" type="text/css" href="css/leaflet.awesome-markers.css">
+    <link rel="stylesheet" type="text/css" href="css/w2ui.min.css" />
+    <link rel="stylesheet" type="text/css" href="css/sanac.css">
+
+    <script type="text/javascript" src="js/leaflet.js"></script>
+	<script type="text/javascript" src="js/leaflet.awesome-markers.js"></script>
+	<script type="text/javascript" src="js/jquery-1.11.3.min.js"></script>
+    <script type="text/javascript" src="js/ext-all.js"></script>
+	<script type="text/javascript" src="js/w2ui.min.js"></script>
+
+
+    <style>
+
+		 #layout {width: 100%; height: 100%;position: absolute; left: 0px; right: 0px; top: 0px; bottom: 0%;}
+		 #RegisterForm { width: 100%; height: 100%; padding:0; margin:0;border:0;border-radius:0;background-image:-webkit-linear-gradient(top, #ffffff 0%, #ffffff 100%);cursor: default;}
+		 #mapOrg { width: 100%; padding:0; margin:0; display:block; border:2px solid #56ABB3; border-radius:4px; background-image:-webkit-linear-gradient(top, #ffffff 0%, #ffffff 100%); cursor: default;}
+		 #servicesGrid { width: 100%; height: 100%; padding:0; margin:0;border:0;border-radius:0;background-image:-webkit-linear-gradient(top, #ffffff 0%, #ffffff 100%);cursor: default;}
+		 #coordinateArea { width: 100%; height: 100%; padding:0; margin:0; border:0; border-radius:0; background-image:-webkit-linear-gradient(top, #f5f5f5 0%, #808080 100%); cursor: default;}
+
+		.w2ui-panel {overflow:none;overflow-x:none;overflow-y:none;}
+		.w2ui-column-container {padding:10px 0 0 0;flex-direction:column;}
+		.w2ui-tab {font-size:11px;border:1px solid #ffffff;}
+		.w2ui-field {padding: 4px 2px 2px 2px;}
+		.w2ui-column-container {display:flex;display:-webkit-flex;}
+		.w2ui-panel-content {overflowY: none; overflowX: none;}
+
+		.col-0 {width:48%;height:100%;padding:0 0 0 0}
+		.page-6 {}
+
+	</style>
+
+</head>
+
+<body style="margin:0;background-Color:#000000;padding:20px;">
+
+<div id="layout" style="opacity:0.1"></div>
+
+<input type='hidden' id='Success' value='0'>
+
+<div id="appWelcomeMessage" style="display: none; width: 600px; height: 600px; overflow: hidden;">
+
+    <div rel="body" id="welcomeBody" style="overflow: hidden;font-size:9pt;font-family:Roboto,Arial,Calibri;">
+
+		<p class="center"> <br> <img src='img/sanacfinal1.png' style='opacity:0.9;width:450px;height:70px;'></p>
+		<h6 class="center">Service Mapper</h6>
+		<div style="padding: 4px 14px 4px 14px;">
+		
+			<table style="font-size:12px;">
+				<tr>
+					<td colspan=2 style="padding:5px;">
+
+						At the heart of the NSP 2017-2022, is the strategy to "Focus for Impact" using more detailed information and insights now available. While comprehensive prevention and care will 
+						be provided countrywide, intensified efforts will be made in HIV and TB high burden areas. In these high-burden areas, redoubled efforts will draw on detailed, innovative data 
+						sources (such as geospatial mapping) to identify those most at risk. The purpose is saturation of high-impact prevention and treatment services and strengthened efforts to address 
+						the social and structural factors that increase vulnerability to infection. Nationally, but especially within these high-burden areas, key and vulnerable populations most heavily 
+						affected by the epidemics will receive intensified focus to empower them, improve service access and reduce barriers to service uptake.<br><br>
+
+						Enhanced focus is also needed on the combination of interventions that are prioritised for scale-up. Priority will be placed on implementing the right mix of high-value, high-impact 
+						interventions that will maximise the number of new infections and deaths averted. To this end, the mapping of services at community level is critical to understand the available 
+						services and therefore also the service delivery gaps that requires additional resources. 
+
+					</td>
+				</tr>
+			</table>
+		
+		</div>
+		<br>
+
+		<div style="padding: 4px 14px 4px 14px;">
+
+			<table style="font-size:12px;width:100%;">
+				<tr>
+					<td colspan=2 style="padding:5px;border:2px dashed #404040;width:100%;background-Color:#f5f5f5;vertical-align:top;text-align:center;">
+						<table>
+							<tr>
+								<td style="padding:4px;vertical-align:top;">
+									<input type=checkbox onclick="document.getElementById('continueAgree').disabled = false;document.getElementById('layout').style.opacity=((this.checked)?'1':'0.1');">
+								</td>
+								<td style="padding:4px;text-align:left;vertical-align:top;">
+									By continuing you acknowledge that the information you are about to provide is verifiable, correct, truthful and accurate
+									<p>&nbsp;</p>
+								</td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+			</table>
+
+		</div>
+
+	</div>
+</div>
+
+<script type="text/javascript">
+
+	var g_myData;
+	var g_mapOrg;
+	var g_mapServices;
+	var g_baseLayer;
+	var g_baseMapLayerOpacity = 1;
+	var g_mapPadding = 10; // increases width of map to ensure dragging of map results in loaded base-tiles
+	var g_clickedLatLong;
+	var g_geoJSONlayerObj;
+	var g_infoControl;
+	var g_prtcl = (window.location.origin).split('://')[0];
+	var g_PGurl = ((1 == 0) ? '://localhost:3000' : '://reg-sanac.hisp.org:3000');
+
+	var isMobile = {
+		Android: function() {
+			return navigator.userAgent.match(/Android/i);
+		},
+		BlackBerry: function() {
+			return navigator.userAgent.match(/BlackBerry/i);
+		},
+		iOS: function() {
+			return navigator.userAgent.match(/iPhone|iPad|iPod/i);
+		},
+		Opera: function() {
+			return navigator.userAgent.match(/Opera Mini/i);
+		},
+		Windows: function() {
+			return navigator.userAgent.match(/IEMobile/i) || navigator.userAgent.match(/WPDesktop/i);
+		},
+		any: function() {
+			return (isMobile.Android() || isMobile.BlackBerry() || isMobile.iOS() || isMobile.Opera() || isMobile.Windows());
+		}
+	};
+
+	$(function () {
+
+		var pstyle = 'border: 1px solid #dfdfdf; padding: 0;';
+		var date_options = { format: 'yyyy-mm-dd' };
+
+		$('#layout').w2layout({
+			name: 'layout',
+			panels: [
+				{ type: 'top', size: 56, resizable: false, style: pstyle, content: getTopContent() },
+				{ type: 'main', style: pstyle + 'border-top: 0px;width:100%;height:100%;', content: '<div id="RegisterForm" style=""></div>' }
+			]
+		});
+
+		$('#RegisterForm').w2form({
+			name   : 'form',
+			url    : 'server/post',
+			tabs: [
+				{ id: 'tab1', caption: '1. Organisation', style: 'font-weight:400;background-Color:#FAFAFA;' },
+				{ id: 'tab2', caption: '2. Gov Partners', style: 'font-weight:400;background-Color:#E3E3E3;'},
+				{ id: 'tab3', caption: '3. Funders', style: 'font-weight:400;background-Color:#CCCCCC;'},
+				{ id: 'tab4', caption: '4. Target Populations', style: 'font-weight:400;background-Color:#B3B3B3;'},
+				{ id: 'tab5', caption: '5. Services', style: 'font-weight:400;background-Color:#8C8C8C;'}, //Primary
+				//{ id: 'tab6', caption: 'Secondary Services'},
+				{ id: 'tab7', caption: 'Organisation <b>Mapping</b>', style: 'font-weight:400;background-Color:#276469;color:#ffffff' },
+				{ id: 'tab8', caption: 'service <b>Mapping</b>', style: 'font-weight:400;background-Color:#68272D;color:#ffffff' },
+			],
+			fields : getFields(),
+			actions: {
+				reset: function () {
+					this.clear();
+					window.location = window.location;
+				},
+				save: function () {
+					postSave(JSON.stringify(this.record));
+					//this.clear();
+				}
+			}
+		});
+		
+
+		var dv = document.createElement('div');
+		dv.setAttribute('class', 'w2ui-field w2ui-span6');
+		dv.setAttribute('style', 'width:100%;');
+
+		var lbl = document.createElement('label');
+		dv.appendChild(lbl);
+
+		var txt = document.createTextNode("Primary Service Delivery Coordinates");
+		lbl.appendChild(txt);
+
+		var dv1 = document.createElement('div');
+		dv.appendChild(dv1);
+
+		var inp = document.createElement('input');
+		inp.setAttribute('type', 'text');
+		inp.setAttribute('id', 'org_coordinates');
+		inp.setAttribute('name', 'org_coordinates');
+		inp.setAttribute('style','width:200px;');
+		inp.setAttribute('value', '');
+		inp.setAttribute('onclick','');
+		dv1.appendChild(inp);
+
+		var sp = document.createElement('span');
+		sp.setAttribute('style','width:20px;');
+		dv1.appendChild(sp);
+		var txt = document.createTextNode(" ");
+		sp.appendChild(txt);
+
+		var inp = document.createElement('input');
+		inp.setAttribute('type', 'button');
+		inp.setAttribute('id', 'confirm_coordinates');
+		inp.setAttribute('style','display:none;height:20px;width:55px;');
+		inp.setAttribute('value', 'confirm');
+		inp.setAttribute('onclick','pasteCoordinateMarker(this)');
+		dv1.appendChild(inp);
+
+		$('.page-5')[0].childNodes[0].appendChild(dv);
+
+		var dv = document.createElement('div');
+		dv.setAttribute('id', 'mapOrg');
+
+		$('.page-5')[0].childNodes[0].appendChild(dv);
+		$('.page-5')[0].childNodes[0].style="display:-webkit-flex;display:flex;width:100%;height:100%;padding:0;";
+
+		if ((navigator.vendor).indexOf('Apple') >= 0){
+			$('.page-5')[0].style = "display:flex;display:-webkit-flex;";
+			dv.style.position = 'relative';
+		} else {
+			dv.style.position = 'relative;'
+			dv.style.position = '150px;'
+		}
+
+		$('.w2ui-panel-content')[0].style="width:100%;height:100%;display:block;top:0px;overflow:none;border:0;border-radius:0;padding:0px;background-Color:#000000;";
+
+		$('.col-0').prop('style', 'width:50%;height:100%;padding:0 0 0 0');
+		$('.col-0')[0].style="width:50%;height:100%;padding:0 0 0 0";
+		$('.page-1')[0].style.padding="25px 0 0 30%";
+		$('.page-2')[0].style.padding="25px 0 0 30%";
+		$('.page-3')[0].style.padding="25px 0 0 20%";
+		$('.page-3')[0].childNodes[0].style.flexDirection ="row";
+		$('.page-4')[0].style.padding="25px 0 0 20%";
+		$('.page-4')[0].childNodes[0].style.flexDirection ="row";
+
+		$('.page-5')[0].style.padding="10px 20px 0 20px";
+
+		$('#org_coordinates').prop('readonly', true);
+
+		$('#tabs_form_tabs_tab_tab7').click(function (e) {
+			e.preventDefault();
+			$('#mapOrg').height($('.page-5').height() - 65);
+			g_mapOrg.invalidateSize();
+		});
+
+
+		/*
+			FUNDER: "OTHER" Text box option creates new input box option
+		*/
+		var dv1 = document.createElement('div');
+		dv1.setAttribute('class', 'w2ui-field w2ui-span6');
+		dv1.setAttribute('id', 'dvNewFunder');
+
+		var lbl = document.createElement('label');
+		lbl.setAttribute('style', 'color:#808080;padding: 0 8px 0 0;');
+		var txt = document.createTextNode("new funder");
+		lbl.appendChild(txt);
+		dv1.appendChild(lbl);
+
+		var dv = document.createElement('div');
+		dv.appendChild(dv1);
+
+		var inp = document.createElement('input');
+		inp.setAttribute('type', 'text');
+		inp.setAttribute('id', 'fund_other');
+		inp.setAttribute('name', 'fund_other');
+		inp.setAttribute('style','width:200px;padding: 4px 0 0 16px;');
+		dv1.appendChild(inp);
+
+		$('.page-2')[0].childNodes[0].childNodes[0].appendChild(dv1);
+		$('#dvNewFunder').hide();
+		$('#fund_5').click(function (e) {
+			if ($('#fund_5')[0].checked){
+				$('#dvNewFunder').show();
+			} else {
+				$('#dvNewFunder').hide();
+			}
+		});
+
+		$('#tabs_form_tabs_tab_tab8').click(function (e) {
+			e.preventDefault();
+			buildServiceMappingLayout();
+			$('#map_head_services').height($('.page-6').height() - 35);
+			$('#servicesGrid').height($('.page-6').height() - 100);
+		});
+
+		InitialiseOrgMap();
+		ShowDisclaimer()
+
+		setTimeout(function () { document.getElementById('layout').style.opacity='0.15'; }, 1000);
+
+		function buildServiceMappingLayout(){
+
+			var bInitialise = false;
+
+			if ($('#map_head_services')[0] != undefined){
+
+				$('#map_opt_services')[0].innerHTML = '';
+				$('#map_opt_funder')[0].innerHTML = '';
+				$('#map_opt_partner')[0].innerHTML = '';
+				$('#map_opt_target')[0].innerHTML = '';
+				//$('#map_opt_orgunitLevelFilter1')[0].innerHTML = '';
+				//$('#map_opt_orgunitFilter')[0].innerHTML = '';
+				$('#map_opt_orgunitLevelFilter')[0].innerHTML = '';
+				$('#map_opt_orgunit')[0].innerHTML = '';
+
+				var dv  = document.getElementById('map_head_services');
+				var SelSV  = document.getElementById('map_opt_services');
+				var SelFn  = document.getElementById('map_opt_funder');
+				var SelPt  = document.getElementById('map_opt_partner');
+				var SelTp  = document.getElementById('map_opt_target');
+
+				var dvGrp2  = document.getElementById('map_head_services_location');
+				//var SelOUlev1  = document.getElementById('map_opt_orgunitLevelFilter1');
+				//var SelOUfil  = document.getElementById('map_opt_orgunitFilter');
+				var SelOUlev2  = document.getElementById('map_opt_orgunitLevelFilter');
+				var SelOU  = document.getElementById('map_opt_orgunit');
+
+			} else {
+
+				bInitialise = true;
+
+				var dv = document.createElement('div');
+				dv.setAttribute('id','map_head_services');
+				dv.setAttribute('style','background-Color:#E3E3E3;border:2px solid #B3B3B3;border-radius:4px;padding:10px 4px 4px 4px;');
+
+				var dvGrp1 = document.createElement('div');
+				dvGrp1.setAttribute('style','padding:0 0 8px 6px;');
+
+				var lbl = document.createElement('label');
+				lbl.setAttribute('style', 'color:#666666;padding: 0 8px 0 0px;');
+				var txt = document.createTextNode("select");
+				lbl.appendChild(txt);
+				dvGrp1.appendChild(lbl);
+
+				var SelSV  = document.createElement('select');
+				SelSV.setAttribute('id', 'map_opt_services');
+				SelSV.setAttribute('name', 'map_opt_services');
+				SelSV.setAttribute('style','');
+				SelSV.setAttribute('class', 'w2ui-input');
+				SelSV.setAttribute('onchange','');
+
+				var lbl1 = document.createElement('label');
+				lbl1.setAttribute('style', 'color:#666666;padding: 0 8px 0 8px;');
+				var txt = document.createTextNode("select");
+				lbl1.appendChild(txt);
+
+				var SelFn = document.createElement('select');
+				SelFn.setAttribute('id', 'map_opt_funder');
+				SelFn.setAttribute('name', 'map_opt_funder');
+				SelFn.setAttribute('style','');
+				SelFn.setAttribute('class', 'w2ui-input');
+				SelFn.setAttribute('onchange','');
+
+				var lbl2 = document.createElement('label');
+				lbl2.setAttribute('style', 'color:#666666;padding: 0 8px 0 8px;');
+				var txt = document.createTextNode("select");
+				lbl2.appendChild(txt);
+
+				var SelPt = document.createElement('select');
+				SelPt.setAttribute('id', 'map_opt_partner');
+				SelPt.setAttribute('name', 'map_opt_partner');
+				SelPt.setAttribute('style','');
+				SelPt.setAttribute('class', 'w2ui-input');
+				SelPt.setAttribute('onchange','');
+
+
+				var lbl3 = document.createElement('label');
+				lbl3.setAttribute('style', 'color:#666666;padding: 0 8px 0 8px;');
+				var txt = document.createTextNode("select");
+				lbl3.appendChild(txt);
+
+				var SelTp = document.createElement('select');
+				SelTp.setAttribute('id', 'map_opt_target');
+				SelTp.setAttribute('name', 'map_opt_target');
+				SelTp.setAttribute('style','');
+				SelTp.setAttribute('class', 'w2ui-input');
+				SelTp.setAttribute('onchange','');
+
+				var dvGrp2 = document.createElement('div');
+				dvGrp2.setAttribute('id','map_head_services_location');
+				dvGrp2.setAttribute('style','vertical-align:middle;width:100%;height:35px;background-Color:#ffffff;border:2px solid #C0C0C0;border-radius:4px;padding:4px 3px 2px 3px;');
+/*
+				var lbl4 = document.createElement('label');
+				lbl4.setAttribute('style', 'color:#808080;padding: 0 8px 0 8px;');
+				var txt = document.createTextNode("  in province  ");
+				lbl4.appendChild(txt);
+
+				var SelOUlev1  = document.createElement('select');
+				SelOUlev1.setAttribute('id', 'map_opt_orgunitLevelFilter1');
+				SelOUlev1.setAttribute('name', 'map_opt_orgunitLevelFilter1');
+				SelOUlev1.setAttribute('style','');
+				SelOUlev1.setAttribute('class', 'w2ui-input');
+				SelOUlev1.setAttribute('onchange','');
+
+				var lbl5 = document.createElement('label');
+				lbl5.setAttribute('style', 'color:#808080;padding: 0 8px 0 8px;');
+				var txt = document.createTextNode("  below  ");
+				lbl5.appendChild(txt);
+
+				var SelOUfil  = document.createElement('select');
+				SelOUfil.setAttribute('id', 'map_opt_orgunitFilter');
+				SelOUfil.setAttribute('name', 'map_opt_orgunitFilter');
+				SelOUfil.setAttribute('style','');
+				SelOUfil.setAttribute('class', 'w2ui-input');
+				SelOUfil.setAttribute('onchange','');
+*/
+				var lbl6 = document.createElement('label');
+				lbl6.setAttribute('style', 'color:#666666;padding: 0 8px 0 8px;');
+				var txt = document.createTextNode("  in  ");
+				lbl6.appendChild(txt);
+
+				var SelOUlev2  = document.createElement('select');
+				SelOUlev2.setAttribute('id', 'map_opt_orgunitLevelFilter');
+				SelOUlev2.setAttribute('name', 'map_opt_orgunitLevelFilter');
+				SelOUlev2.setAttribute('style','');
+				SelOUlev2.setAttribute('class', 'w2ui-input');
+				SelOUlev2.setAttribute('onchange','populationSelectOptions(this.value,document.getElementById("map_opt_orgunit"),"")');
+
+				var lbl7 = document.createElement('label');
+				lbl7.setAttribute('style', 'color:#666666;padding: 0 8px 0 8px;');
+				var txt = document.createTextNode(" > ");
+				lbl7.appendChild(txt);
+
+				var SelOU  = document.createElement('select');
+				SelOU.setAttribute('id', 'map_opt_orgunit');
+				SelOU.setAttribute('name', 'map_opt_orgunit');
+				SelOU.setAttribute('style','');
+				SelOU.setAttribute('class', 'w2ui-input');
+				SelOU.setAttribute('onchange','');
+
+				var lbl8 = document.createElement('label');
+				lbl8.setAttribute('style', 'color:#666666;padding:4px;');
+				var txt = document.createTextNode(" ");
+				lbl8.appendChild(txt);				
+
+				var inpSVMAP = document.createElement('input');
+				inpSVMAP.setAttribute('id', 'submitServiceMapping');
+				inpSVMAP.setAttribute('name', 'submitServiceMapping');
+				inpSVMAP.setAttribute('type', 'button');
+				inpSVMAP.setAttribute('style','height:20px;width:80px;');
+				inpSVMAP.setAttribute('class', 'w2ui-btn');
+				inpSVMAP.setAttribute('onclick','CreateServiceMappingRow()');
+				inpSVMAP.setAttribute('value', 'add');
+
+				var lbl9 = document.createElement('label');
+				lbl9.setAttribute('style', 'color:#666666;padding:4px;');
+				var txt = document.createTextNode(" ");
+				lbl9.appendChild(txt);	
+			
+				var inpSVclear = document.createElement('input');
+				inpSVclear.setAttribute('id', 'clearServiceMapping');
+				inpSVclear.setAttribute('name', 'clearServiceMapping');
+				inpSVclear.setAttribute('type', 'button');
+				inpSVclear.setAttribute('style','height:20px;width:80px;');
+				inpSVclear.setAttribute('class', 'w2ui-btn');
+				inpSVclear.setAttribute('onclick','ClearAllServiceMappings()');
+				inpSVclear.setAttribute('value', 'clear');
+
+				var lbl10 = document.createElement('label');
+				lbl10.setAttribute('style', 'color:#666666;padding:4px;');
+				var txt = document.createTextNode(" ");
+				lbl10.appendChild(txt);	
+
+				var inpSVremove = document.createElement('input');
+				inpSVremove.setAttribute('id', 'removedSelectedServiceMapping');
+				inpSVremove.setAttribute('name', 'removedSelectedServiceMapping');
+				inpSVremove.setAttribute('type', 'button');
+				inpSVremove.setAttribute('style','height:20px;width:80px;');
+				inpSVremove.setAttribute('class', 'w2ui-btn');
+				inpSVremove.setAttribute('onclick','removedSelectedServiceMappings()');
+				inpSVremove.setAttribute('value', 'remove');
+
+			}
+
+			var opt = document.createElement('option');
+			opt.setAttribute('value', 0);
+			opt.setAttribute('style', 'background-Color:#f5f5f5;');
+			var txt = document.createTextNode("<" + (($('#tabs_form_tabs_tab_tab5')[0].childNodes[1].innerText).split('.')[1]).trim() +  ">");
+			opt.appendChild(txt);
+			SelSV.appendChild(opt);
+
+				var opt = document.createElement('option');
+				opt.setAttribute('value', 0);
+				opt.setAttribute('style', 'background-Color:#f5f5f5;');
+				var txt = document.createTextNode("<administrative level>");
+				opt.appendChild(txt);
+				//SelOUlev1.appendChild(opt.cloneNode(true));
+				SelOUlev2.appendChild(opt);
+				
+				var opt = document.createElement('option');
+				opt.setAttribute('value', 0);
+				opt.setAttribute('style', 'background-Color:#f5f5f5;');
+				var txt = document.createTextNode("<select>");
+				opt.appendChild(txt);
+				//SelOUlev1.appendChild(opt.cloneNode(true));
+				SelOU.appendChild(opt);
+
+
+				var opt = document.createElement('option');
+				opt.setAttribute('value', 2);
+				opt.setAttribute('style', 'background-Color:#f5f5f5;');
+				var txt = document.createTextNode("province");
+				opt.appendChild(txt);
+
+				//SelOUlev1.appendChild(opt.cloneNode(true));
+				SelOUlev2.appendChild(opt);
+
+				var opt = document.createElement('option');
+				opt.setAttribute('value', 3);
+				opt.setAttribute('style', 'background-Color:#f5f5f5;');
+				var txt = document.createTextNode("district municipality/metro");
+				opt.appendChild(txt);
+
+				//SelOUlev1.appendChild(opt.cloneNode(true));
+				SelOUlev2.appendChild(opt);
+
+				var opt = document.createElement('option');
+				opt.setAttribute('value', 4);
+				opt.setAttribute('style', 'background-Color:#f5f5f5;');
+				var txt = document.createTextNode("local municipality");
+				opt.appendChild(txt);
+				//SelOUlev1.appendChild(opt.cloneNode(true));
+				SelOUlev2.appendChild(opt);
+/*
+				var opt = document.createElement('option');
+				opt.setAttribute('value', 5);
+				opt.setAttribute('style', 'background-Color:#f5f5f5;');
+				var txt = document.createTextNode("public health facility");
+				opt.appendChild(txt);
+				SelOUlev1.appendChild(opt.cloneNode(true));
+				SelOUlev2.appendChild(opt);
+*/
+
+			var opt = document.createElement('option');
+			opt.setAttribute('value', 0);
+			opt.setAttribute('style', 'background-Color:#f5f5f5;');
+			var txt = document.createTextNode("<" + (($('#tabs_form_tabs_tab_tab3')[0].childNodes[1].innerText).split('.')[1]).trim() +  ">");
+			opt.appendChild(txt);
+			SelFn.appendChild(opt);
+
+			var opt = document.createElement('option');
+			opt.setAttribute('value', 0);
+			opt.setAttribute('style', 'background-Color:#f5f5f5;');
+			var txt = document.createTextNode("<" + (($('#tabs_form_tabs_tab_tab2')[0].childNodes[1].innerText).split('.')[1]).trim() +  ">");
+			opt.appendChild(txt);
+			SelPt.appendChild(opt);
+
+			var opt = document.createElement('option');
+			opt.setAttribute('value', 0);
+			opt.setAttribute('style', 'background-Color:#f5f5f5;');
+			var txt = document.createTextNode("<" + (($('#tabs_form_tabs_tab_tab4')[0].childNodes[1].innerText).split('.')[1]).trim() +  ">");
+			opt.appendChild(txt);
+			SelTp.appendChild(opt);
+
+			for (var i = 0; i < w2ui.form.fields.length; i++){
+				if ($('#' + w2ui.form.fields[i].name)[0].checked){
+					/* Checked SERVICE options */ 
+					if ((w2ui.form.fields[i].name).indexOf('serv_1_') >= 0){
+						var ArrID = (w2ui.form.fields[i].name).split('_');
+						var optSV = document.createElement('option');
+						optSV.setAttribute('value', ArrID[2]);
+						var txt = document.createTextNode($('#' + w2ui.form.fields[i].name).parent().parent().children(0)[0].innerText);
+						optSV.appendChild(txt);
+						SelSV.appendChild(optSV);
+					}
+					/* Checked FUNDER options */
+					if ((w2ui.form.fields[i].name).indexOf('fund_') >= 0){
+						var ArrID = (w2ui.form.fields[i].name).split('_');
+						var optSV = document.createElement('option');
+						optSV.setAttribute('value', ArrID[1]);
+						var txt = document.createTextNode($('#' + w2ui.form.fields[i].name).parent().parent().children(0)[0].innerText);
+						optSV.appendChild(txt);
+						SelFn.appendChild(optSV);
+					}
+					/* Checked PARTNER options */
+					if ((w2ui.form.fields[i].name).indexOf('part_') >= 0){
+						var ArrID = (w2ui.form.fields[i].name).split('_');
+						var optSV = document.createElement('option');
+						optSV.setAttribute('value', ArrID[1]);
+						var txt = document.createTextNode($('#' + w2ui.form.fields[i].name).parent().parent().children(0)[0].innerText);
+						optSV.appendChild(txt);
+						SelPt.appendChild(optSV);
+					}
+					/* Checked PARTNER options */
+					if ((w2ui.form.fields[i].name).indexOf('targ_') >= 0){
+						var ArrID = (w2ui.form.fields[i].name).split('_');
+						var optSV = document.createElement('option');
+						optSV.setAttribute('value', ArrID[1]);
+						var txt = document.createTextNode($('#' + w2ui.form.fields[i].name).parent().parent().children(0)[0].innerText);
+						optSV.appendChild(txt);
+						SelTp.appendChild(optSV);
+					}
+				}
+			}
+
+			if ($('#map_opt_services')[0] == undefined){
+				dvGrp1.appendChild(lbl1);
+				dvGrp1.appendChild(SelPt);
+				dvGrp1.appendChild(lbl1);
+				dvGrp1.appendChild(SelFn);
+				dvGrp1.appendChild(lbl2);
+				dvGrp1.appendChild(SelTp);
+				dvGrp1.appendChild(lbl3);
+				dvGrp1.appendChild(SelSV);
+
+
+				dv.appendChild(dvGrp1);
+
+				//dvGrp2.appendChild(lbl4);
+				//dvGrp2.appendChild(SelOUlev1);
+				
+				//dvGrp2.appendChild(lbl5);
+				//dvGrp2.appendChild(SelOUfil);
+				
+				//populationSelectOptions(2,SelOUfil,'');
+
+				dvGrp2.appendChild(lbl6);
+				dvGrp2.appendChild(SelOUlev2);
+
+				dvGrp2.appendChild(lbl7);
+				dvGrp2.appendChild(SelOU);
+
+				dvGrp2.appendChild(lbl8);
+				dvGrp2.appendChild(inpSVMAP);
+
+				dvGrp2.appendChild(lbl9);
+				dvGrp2.appendChild(inpSVclear);
+
+				dvGrp2.appendChild(lbl10);
+				dvGrp2.appendChild(inpSVremove);
+
+				dv.appendChild(dvGrp2);
+
+				var dvSVgrid = document.createElement('div');
+				dvSVgrid.setAttribute('id','servicesGrid');
+				dvSVgrid.setAttribute('style','width:100%;');
+
+				dv.appendChild(dvSVgrid);
+
+			}
+
+			$('.page-6')[0].childNodes[0].appendChild(dv);
+
+			if (bInitialise){
+
+				//$('.page-6')[0].childNodes[0].appendChild(dvSVgrid);
+
+				$('#servicesGrid').w2grid({ 
+					name: 'servicesGrid', 
+					datasource: '',
+					multiSelect: true,
+					columns: [                
+						{ field: 'recid', caption: 'row', size: '40px', sortable: true },
+						{ field: 'partner', caption: (($('#tabs_form_tabs_tab_tab2')[0].childNodes[1].innerText).split('.')[1]).trim(), size: '15%', sortable: true },
+						{ field: 'partnerid', caption: 'partnerid', size: '0', sortable: false, hidden: true },
+						{ field: 'funder', caption: (($('#tabs_form_tabs_tab_tab3')[0].childNodes[1].innerText).split('.')[1]).trim(), size: '15%', sortable: true },
+						{ field: 'funderid', caption: 'funderid', size: '0', sortable: false, hidden: true },
+						{ field: 'target', caption: (($('#tabs_form_tabs_tab_tab4')[0].childNodes[1].innerText).split('.')[1]).trim(), size: '15%', sortable: true },
+						{ field: 'targetid', caption: 'targetid', size: '0', sortable: false, hidden: true },
+						{ field: 'service', caption: (($('#tabs_form_tabs_tab_tab5')[0].childNodes[1].innerText).split('.')[1]).trim(), size: '15%', sortable: true },
+						{ field: 'serviceid', caption: 'serviceid', size: '0', sortable: false, hidden: true },
+						{ field: 'region', caption: 'admin level', size: '15%', sortable: true },
+						{ field: 'oulevel', caption: 'oulevel', size: '0', sortable: false, hidden: true },
+						{ field: 'area', caption: 'area', size: '15%', sortable: true },
+						{ field: 'ouuid', caption: 'ouuid', size: '0', sortable: false, hidden: true }
+					],
+					show: {
+						header: false,
+						toolbar: false,
+						footer: false,
+						lineNumbers: false,
+						selectColumn: true,
+						expandColumn: false
+					}
+				});
+
+			}
+
+		}
+
+
+		function getFields(){
+
+			var flds = [];
+
+			flds.push ( { field: 'org_name', type: 'text', html: { caption: 'Name', page: 0, column: 0, attr: 'style="width:300px;"' }, required: true } ); 
+			flds.push ( { field: 'org_description',  type: 'textarea', html: { caption: 'Description', page: 0, column: 0, attr: 'style="width:300px;"' }, required: false } );
+			flds.push ( { field: 'org_validfrom', type: 'date', html: { caption: 'Established', page: 0, column: 0, attr: 'style="width:85px;"' }, required: true, options: date_options } );
+			flds.push ( { field: 'attr_2',   type: 'text', html: { caption: 'Contact Person:', page: 0, column: 0, attr: 'style="width:300px;"' }, required: true } );
+			flds.push ( { field: 'attr_6',  type: 'text', html: { caption: 'Email', page: 0 }, required: true } );
+			flds.push ( { field: 'attr_4',  type: 'text', html: { caption: 'Landline', page: 0 }, required: true } );
+			flds.push ( { field: 'attr_5',  type: 'text', html: { caption: 'Mobile', page: 0 }, required: true } );
+			flds.push ( { field: 'attr_3',  type: 'text', html: { caption: 'Physical Address', page: 0, attr: 'style="width:300px;" ' }, required: false } );
+			flds.push ( { field: 'attr_9',  type: 'text', html: { caption: 'Website', page: 0, attr: 'style="width:300px;"' }, required: false } );
+			//flds.push ( { field: 'attr_7',  type: 'text', html: { caption: 'Project/Program name', page: 0, attr: 'style="width:300px;"' }, required: true } );
+
+			var myDataURL = (g_prtcl + g_PGurl + '/partner?select=partnerid,name&order=name');
+			var dxAPIJ = JSON.parse($.ajax({url:myDataURL, async: false}).responseText);
+
+			for (var p = 0; p < dxAPIJ.length; p++) {
+				flds.push ( { field: ('part_' + dxAPIJ[p].partnerid), type: 'checkbox', html: { caption: dxAPIJ[p].name, page: 1, column: 0, hint: dxAPIJ[p].name } } );
+			}
+
+			var myDataURL = (g_prtcl + g_PGurl + '/funder?select=funderid,name&order=name');
+			var dxAPIJ = JSON.parse($.ajax({url:myDataURL, async: false}).responseText);
+
+			for (var p = 0; p < dxAPIJ.length; p++) {
+				flds.push ( { field: ('fund_' + dxAPIJ[p].funderid), type: 'checkbox', html: { caption: dxAPIJ[p].name, page: 2, column: 0, hint: dxAPIJ[p].name } } );
+			}
+
+			var myDataURL = (g_prtcl + g_PGurl + '/targetgroup?select=targetgroupid,name&order=name');
+			var dxAPIJ = JSON.parse($.ajax({url:myDataURL, async: false}).responseText);
+
+			for (var p = 0; p < dxAPIJ.length; p++) {
+				flds.push ( { field: ('targ_' + dxAPIJ[p].targetgroupid), type: 'checkbox', html: { caption: dxAPIJ[p].name, page: 3, column: ( ( (p+1) <= Math.ceil(dxAPIJ.length/2) ) ? 0 : 1 ), hint: dxAPIJ[p].name, attr: '' } } );
+			}
+
+			var myDataURL = (g_prtcl + g_PGurl + '/service?select=serviceid,name&order=name');
+			var dxAPIJ = JSON.parse($.ajax({url:myDataURL, async: false}).responseText);
+
+			for (var p = 0; p < dxAPIJ.length; p++) {
+				flds.push ( { field: ('serv_1_' + dxAPIJ[p].serviceid), type: 'checkbox', html: { caption: dxAPIJ[p].name, page: 4, column: ( ( (p+1) <= Math.ceil(dxAPIJ.length/2) ) ? 0 : 1 ), hint: dxAPIJ[p].name, attr: '' } } );
+			}
+/*
+			for (var p = 0; p < dxAPIJ.length; p++) {
+				flds.push ( { field: ('serv_2_' + dxAPIJ[p].serviceid), type: 'checkbox', html: { caption: dxAPIJ[p].name, page: 5, column: ( ( (p+1) < Math.floor(dxAPIJ.length/2) ) ? 0 : 1 ), hint: dxAPIJ[p].name } } );
+			}
+*/
+			return flds;
+
+		}
+		
+		function postSave(thisObj) {
+
+			w2popup.open({
+				body: '<div id="savingPrompt" style="background-Color:#ffffff;width:100%;height:100%;padding:10% 10% 10% 10%;vertical-align:middle;text-align:center;"><p>&nbsp;</p><img src="img/Preloader_8.gif" style="width:40px;height:40px;"><p>&nbsp;</p>saving...</div>',
+				onClose   : function (event) { if (document.getElementById('Success').value == 1) { window.location = window.location }; }
+			});
+			var myPostURL = (g_prtcl + g_PGurl + '/trxpost');
+			var myRecord = JSON.parse(thisObj);
+			var myUID = generateUUID();
+
+			/* FUNDER 'OTHER' SELECTED */
+			if ($('#fund_5')[0].checked) {		
+				myRecord["new_fund"] = document.getElementById('fund_other').value;
+			}
+			if ((document.getElementById('org_coordinates').value).length) {			
+				myRecord["org_coordinates"] = "[" + document.getElementById('org_coordinates').value + "]";
+			}
+			if (w2ui['servicesGrid'].records.length > 0){
+				myRecord["servicePoints"] = EnrichRowIdentifiers(w2ui['servicesGrid'].records);
+			}
+			//console.log(JSON.stringify(myRecord));
+
+			var saveRec = {
+				uid: myUID,
+				status: 0,
+				type: 'organisationRegistration',
+				data: JSON.stringify(myRecord)
+			}
+
+			$.post( myPostURL, saveRec, function(response,status){
+
+				if (status == 'success'){
+					document.getElementById('Success').value = 1;
+					w2popup.title = 'SAVED';
+					document.getElementById('savingPrompt').innerHTML= '<div id="saved" style="vertical-align:middle;text-align:center;">' + '<img src="img/ffi.jpg" style="width:100px;height:140px;"><p>&nbsp;</p>Thank you for registering your organisation.<br>Your information was successfully recorded' + '</div>';
+					setTimeout(function () { w2popup.close(); }, 8000);
+				}
+
+			});
+
+		}
+
+		function ShowDisclaimer(){
+
+				function reject(){
+					window.location = 'www.google.com';
+				}
+
+				w2popup.open({
+					title   : "* DISCLAIMER ",
+					body    : '<div id="appDisclaimer" style="width:100%;height:100%;"></div>',
+					buttons   : '<button class="" id="continueAgree" onclick="w2popup.close();" DISABLED> Continue </button>', //<button class="btn" onclick="w2popup.close();"> Reject </button>
+					width     : 600,
+					height    : 600,
+					overflow  : 'hidden',
+					color     : '#333',
+					speed     : '0.3',
+					opacity   : '0.5',
+					modal     : true,
+					showClose : false,
+					showMax   : false,
+				});
+
+				document.getElementById('appDisclaimer').innerHTML = document.getElementById('appWelcomeMessage').innerHTML;
+
+		}
+
+		function getTopContent(){
+			return ("<nav class='navbar navbar-static-top navbar-dark bg-inverse' style='padding:10px 0px 2px 16px;overflow:hidden;scroll:no;font-size:24px;color:#fff;border-radius:0;height:100%;'><img src='img/sanaclogo.png' style='width:30px;height:30px;position:relative;top:-2px;left:-6px;'></a>Focus for Impact: Service Mapper (REGISTRATION) </nav>");
+		}
+
+		function getEntityFields(){
+
+			var myDataURL = (g_prtcl + g_PGurl + '/entityColumns?entityname=eq.organisation');
+			var returnObj = [];
+
+			$.ajax({
+				url: myDataURL,
+				success : function(data){
+
+					for( var i=0; i < data.length; i++ ){
+						returnObj.push ( { field: ('attr_' + data[i].entityattributeid), type: 'text', html: { caption: data[i].name, page: 0 }  } ); 
+					}
+					w2ui.form.fields = returnObj;
+
+					console.log(JSON.stringify(returnObj));
+
+				}
+
+			});
+
+		}
+
+	});
+
+	function generateUUID() { // Public Domain/MIT
+		var sReturn = "";
+		var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+		for( var i=0; i < 11; i++ )
+			sReturn += possible.charAt(Math.floor(Math.random() * possible.length));
+
+		return sReturn;
+	}
+
+	function pasteCoordinateMarker(thisObj){
+
+		clearMarkersOrgMap()
+
+		var ArrP = (document.getElementById('org_coordinates').value).split(',');
+		var marker = L.marker([ArrP[1], ArrP[0]], {}).addTo(g_mapOrg);
+		//var marker = L.marker([ArrP[1], ArrP[0]], {icon: L.AwesomeMarkers.icon({icon: 'home',  prefix: 'glyphicon',markerColor: 'cadetblue'}) }).addTo(g_mapOrg);
+		g_mapOrg.panTo([ArrP[1], ArrP[0]], {animate: true} );
+		document.getElementById(thisObj.id).style.display = 'none';
+	}
+
+	function clearMarkersOrgMap(){
+		g_mapOrg.eachLayer(function (layer) {
+			if (layer._latlng != undefined)	{
+				g_mapOrg.removeLayer(layer);
+			}
+		});
+	}
+
+	function InitialiseOrgMap(){
+
+		g_mapOrg = new L.map('mapOrg', { renderer: L.svg({ padding: g_mapPadding }) }).setView([-27, 24], 5);
+		g_mapOrg.on('click', function(e) {
+			//g_clickedLatLong = ((e.latlng.lng).toFixed(g_mapOrg.getZoom()/2) + "," + (e.latlng.lat).toFixed(g_mapOrg.getZoom()/2));
+			g_clickedLatLong = ((e.latlng.lng).toFixed(6) + "," + (e.latlng.lat).toFixed(6));
+			clearMarkersOrgMap();
+			document.getElementById('org_coordinates').value=g_clickedLatLong;
+			var marker = L.marker([e.latlng.lat, e.latlng.lng],{}).addTo(g_mapOrg);
+			//var marker = L.marker([e.latlng.lat, e.latlng.lng], {icon: L.AwesomeMarkers.icon({icon: 'spinner',  prefix: 'fa',markerColor: 'cadetblue', spin:true}) }).addTo(g_mapOrg);
+			document.getElementById('confirm_coordinates').style.display = '';
+		});
+
+		var OpenStreetMap_Mapnik = L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {opacity: g_baseMapLayerOpacity, maxZoom: 19,attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'});
+		var Esri_WorldImagery = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {opacity: g_baseMapLayerOpacity, attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'});
+		var Esri_WorldStreetMap = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {opacity: g_baseMapLayerOpacity, attribution: 'Tiles &copy; Esri &mdash; Source: Esri'});
+
+		g_baseMapCollection = {
+			"OpenStreetMap.": OpenStreetMap_Mapnik,
+			"EsriWorldImagery": Esri_WorldImagery,
+			"EsriWorldStreetMap": Esri_WorldStreetMap
+		};
+
+		var layerControl = L.control.layers(g_baseMapCollection, null, {position:'bottomright', opacitySlider: true}).addTo(g_mapOrg);
+		g_baseLayer = OpenStreetMap_Mapnik.addTo(g_mapOrg);
+		
+		g_mapOrg.on('resize', function(e) {
+			$('#mapOrg').height($('.page-5').height() - 65);
+		});
+
+	}
+
+	function searchGPS(thisObj){
+		var myGetURL = 'https://maps.google.com/maps/api/geocode/json?key=AIzaSyBqVk6d7qGXLkD9LDkoZ2Dr-wZXgvswS_8&address=' + (thisObj.value).replace(' ','+') + '';
+
+		$.post( myGetURL, function(responseData,status){
+
+			if (status == 'success'){
+
+				console.log(responseData);
+
+			}
+		});
+	}
+
+	function confirmAddOpts(responseData,returnID){
+
+		console.log(responseData);
+		return JSON.stringify(responseData);
+
+	}
+
+	function isNumeric(n) {
+	  return !isNaN(parseFloat(n)) && isFinite(n);
+	}
+
+
+
+		function LoadPartners(sfilter,sPrefix){
+
+			var myDataURL = (g_prtcl + g_PGurl + '/partner?select=partnerid,name');
+			var objReturn = [];
+
+			if (sfilter != undefined){
+				myDataURL += ((sfilter.length) ? ('&' + sfilter) + '&order=name' : '&order=name');
+			} else {
+				myDataURL += '&order=name';
+			}
+
+			var dxAPIJ = JSON.parse($.ajax({url:myDataURL, async: false}).responseText);
+
+			for (var p = 0; p < dxAPIJ.length; p++) {
+				objReturn.push ( { field: (sPrefix + dxAPIJ[p].partnerid), type: 'checkbox', html: { caption: dxAPIJ[p].name, page: 1, column: 0, hint: dxAPIJ[p].name } } );
+			}
+			return JSON.stringify(objReturn).replace('[','').replace(']','');
+
+		}
+
+		function LoadFunders(sfilter,sPrefix){
+
+			var myDataURL = (g_prtcl + g_PGurl + '/funder');
+
+			myDataURL += ((sfilter.length) ? ('?' + sfilter) : '');
+
+			$.ajax({
+				url: myDataURL,
+				success : function(data){
+					var w2Data = JSON.parse('{  "total":"' + (data.length) + '", "records":' + JSON.stringify(data).replace('organisationid','recid') + ' }');
+				}
+
+			});
+
+		}
+
+		function LoadTargetGroups(sfilter){
+
+			var myDataURL = (g_prtcl + g_PGurl + '/targetgroup');
+
+			myDataURL += ((sfilter.length) ? ('?' + sfilter) : '');
+
+			$.ajax({
+				url: myDataURL,
+				success : function(data){
+					var w2Data = JSON.parse('{  "total":"' + (data.length) + '", "records":' + JSON.stringify(data).replace('organisationid','recid') + ' }');
+				}
+
+			});
+
+		}
+
+		function LoadServices(sfilter){
+
+			var myDataURL = (g_prtcl + g_PGurl + '/service');
+
+			myDataURL += ((sfilter.length) ? ('?' + sfilter) : '');
+
+			$.ajax({
+				url: myDataURL,
+				success : function(data){
+					var w2Data = JSON.parse('{  "total":"' + (data.length) + '", "records":' + JSON.stringify(data).replace('organisationid','recid') + ' }');
+				}
+
+			});
+
+		}
+
+		function CreateServiceMappingRow(){		
+
+			var selSv = document.getElementById("map_opt_services");
+			var Sv = ((selSv.selectedIndex > 0) ? selSv.options[selSv.selectedIndex].text : '').replace('<','').replace('>','');
+			var SvId = selSv.value;
+			var selFn = document.getElementById("map_opt_funder");
+			var Fn = ((selFn.selectedIndex > 0) ? selFn.options[selFn.selectedIndex].text : '').replace('<','').replace('>','');
+			var FnId = selFn.value;
+			var selPt = document.getElementById("map_opt_partner");
+			var Pt = ((selPt.selectedIndex > 0) ? selPt.options[selPt.selectedIndex].text : '').replace('<','').replace('>','');
+			var PtId = selPt.value;
+			var selTp = document.getElementById("map_opt_target");
+			var Tp = ((selTp.selectedIndex > 0) ? selTp.options[selTp.selectedIndex].text : '').replace('<','').replace('>','');
+			var TpId = selTp.value;
+			var selOUl = document.getElementById("map_opt_orgunitLevelFilter");
+			var OUl = ((selOUl.selectedIndex > 0) ? selOUl.options[selOUl.selectedIndex].text : '').replace('<','').replace('>','');
+			var OUlId = selOUl.value;
+			var selOUuid = document.getElementById("map_opt_orgunit");
+			var OU = ((selOUuid.selectedIndex > 0) ? selOUuid.options[selOUuid.selectedIndex].text : '').replace('<','').replace('>','');
+			var OUuid = selOUuid.value;
+
+			var g = w2ui['servicesGrid'].records.length;
+			w2ui['servicesGrid'].add( { recid: (g + 1), service: (Sv), serviceid: SvId, funder: (Fn), funderid: FnId, partner: (Pt), partnerid: PtId, target: (Tp), targetid: TpId, region: OUl, oulevel: OUlId, area: OU, ouuid: OUuid } );
+
+		}
+
+		function EnrichRowIdentifiers(jData){
+			var ObjReturn = [];
+			for (var i = 0; i < jData.length; i++){
+				ObjReturn.push ({ "rowid": jData[i].recid, "serviceid": jData[i].serviceid, "funderid": jData[i].funderid, "partnerid": jData[i].partnerid, "targetid": jData[i].targetid, "oulevel": jData[i].oulevel, "ouuid": jData[i].ouuid });
+			}
+			return (ObjReturn);
+		}
+
+		function ClearAllServiceMappings() {
+			w2ui['servicesGrid'].clear();
+			w2ui['servicesGrid'].refresh();
+		}
+		
+		function removedSelectedServiceMappings(){
+			w2ui['servicesGrid'].delete(true);
+			w2ui['servicesGrid'].refresh();
+
+			//w2ui.grid.getSelection()
+			
+		}
+		
+		function populationSelectOptions(oulevel,SelOUfil,sfilter){
+
+			SelOUfil.innerHTML = '';
+			var opt = document.createElement('option');
+			opt.setAttribute('value', '');
+			var txt = document.createTextNode('<select>');
+			opt.appendChild(txt);
+			SelOUfil.appendChild(opt);
+
+			if (oulevel > 1){
+
+				var myDataURL = (g_prtcl + g_PGurl + '/ou' + oulevel + '?select=uid,name');
+				myDataURL += ((sfilter.length) ? ('&' + sfilter) : '');
+				myDataURL += '&order=name';
+
+				$.ajax({
+					url: myDataURL,
+					success : function(data){
+						for (var i = 0; i < data.length; i++){
+							var opt = document.createElement('option');
+							opt.setAttribute('value', data[i].uid);
+							var txt = document.createTextNode(data[i].name);
+							opt.appendChild(txt);
+							SelOUfil.appendChild(opt);
+						}
+					}
+
+				});
+			}
+
+		}
+
+</script>
+
+</body>
+</html>

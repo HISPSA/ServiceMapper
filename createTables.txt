@@ -1,0 +1,912 @@
+CREATE SEQUENCE public.attribute_attributeid_seq
+  INCREMENT 1
+  MINVALUE 1
+  MAXVALUE 9223372036854775807
+  START 1
+  CACHE 1;
+ALTER TABLE public.attribute_attributeid_seq
+  OWNER TO postgres;
+
+CREATE SEQUENCE public.attribute_id_seq
+  INCREMENT 1
+  MINVALUE 1
+  MAXVALUE 9223372036854775807
+  START 9
+  CACHE 1;
+ALTER TABLE public.attribute_id_seq
+  OWNER TO postgres;
+
+  CREATE SEQUENCE public.coordinate_id_seq
+  INCREMENT 1
+  MINVALUE 1
+  MAXVALUE 9223372036854775807
+  START 22
+  CACHE 1;
+ALTER TABLE public.coordinate_id_seq
+  OWNER TO postgres;
+  
+  CREATE SEQUENCE public.entityattribute_id_seq
+  INCREMENT 1
+  MINVALUE 1
+  MAXVALUE 9223372036854775807
+  START 8
+  CACHE 1;
+ALTER TABLE public.entityattribute_id_seq
+  OWNER TO postgres;
+
+  
+CREATE SEQUENCE public.funder_id_seq
+  INCREMENT 1
+  MINVALUE 1
+  MAXVALUE 9223372036854775807
+  START 6
+  CACHE 1;
+ALTER TABLE public.funder_id_seq
+  OWNER TO postgres;
+
+  
+  CREATE SEQUENCE public.organisation_id_seq
+  INCREMENT 1
+  MINVALUE 1
+  MAXVALUE 9223372036854775807
+  START 1696
+  CACHE 1;
+ALTER TABLE public.organisation_id_seq
+  OWNER TO postgres;
+
+  
+  CREATE SEQUENCE public.organisationcoordinate_id_seq
+  INCREMENT 1
+  MINVALUE 1
+  MAXVALUE 9223372036854775807
+  START 22
+  CACHE 1;
+ALTER TABLE public.organisationcoordinate_id_seq
+  OWNER TO postgres;
+  
+  CREATE SEQUENCE public.organisationservicelevelid_id_seq
+  INCREMENT 1
+  MINVALUE 1
+  MAXVALUE 9223372036854775807
+  START 70
+  CACHE 1;
+ALTER TABLE public.organisationservicelevelid_id_seq
+  OWNER TO postgres;
+  
+  CREATE SEQUENCE public.partner_id_seq
+  INCREMENT 1
+  MINVALUE 1
+  MAXVALUE 9223372036854775807
+  START 11
+  CACHE 1;
+ALTER TABLE public.partner_id_seq
+  OWNER TO postgres;
+  
+  
+  CREATE SEQUENCE public.person_id_seq
+  INCREMENT 1
+  MINVALUE 1
+  MAXVALUE 9223372036854775807
+  START 1
+  CACHE 1;
+ALTER TABLE public.person_id_seq
+  OWNER TO postgres;
+
+  CREATE SEQUENCE public.service_id_seq
+  INCREMENT 1
+  MINVALUE 1
+  MAXVALUE 9223372036854775807
+  START 21
+  CACHE 1;
+ALTER TABLE public.service_id_seq
+  OWNER TO postgres;
+
+  CREATE SEQUENCE public.targetgroup_id_seq
+  INCREMENT 1
+  MINVALUE 1
+  MAXVALUE 9223372036854775807
+  START 22
+  CACHE 1;
+ALTER TABLE public.targetgroup_id_seq
+  OWNER TO postgres;
+
+  CREATE SEQUENCE public.targetgroupid_id_seq
+  INCREMENT 1
+  MINVALUE 1
+  MAXVALUE 9223372036854775807
+  START 22
+  CACHE 1;
+ALTER TABLE public.targetgroupid_id_seq
+  OWNER TO postgres;
+
+  
+  CREATE SEQUENCE public.trxpost_id_seq
+  INCREMENT 1
+  MINVALUE 1
+  MAXVALUE 9223372036854775807
+  START 56
+  CACHE 1;
+ALTER TABLE public.trxpost_id_seq
+  OWNER TO postgres;
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  CREATE TABLE public.attribute
+(
+  attributeid integer NOT NULL DEFAULT nextval('attribute_id_seq'::regclass),
+  uid character varying(11),
+  name character varying(250),
+  description character varying(500),
+  "dateCreated" date DEFAULT now(),
+  "lastUpdated" date DEFAULT now(),
+  CONSTRAINT attribute_pkey PRIMARY KEY (attributeid)
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE public.attribute
+  OWNER TO postgres;
+
+  
+  CREATE TABLE public.coordinate
+(
+  coordinateid integer NOT NULL DEFAULT nextval('coordinate_id_seq'::regclass),
+  "geometry.type" character varying(20) DEFAULT 'Point'::character(5),
+  "geometry.coordinates" character varying(50000),
+  "ValidFrom" date DEFAULT now(),
+  "ValidTo" date DEFAULT '9999-12-31'::date,
+  what3words character varying(100),
+  sourceuid character varying(11),
+  "dateCreated" date DEFAULT now(),
+  "lastUpdated" date DEFAULT now(),
+  CONSTRAINT coordinate_pkey PRIMARY KEY (coordinateid)
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE public.coordinate
+  OWNER TO postgres;
+
+  CREATE TABLE public.entityattribute
+(
+  entityattributeid integer NOT NULL DEFAULT nextval('entityattribute_id_seq'::regclass),
+  entityname character varying(25),
+  attributeid integer,
+  sortorder integer,
+  compulsory integer,
+  "dateCreated" date DEFAULT now(),
+  "lastUpdated" date DEFAULT now(),
+  CONSTRAINT entityattribute_pkey PRIMARY KEY (entityattributeid)
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE public.entityattribute
+  OWNER TO postgres;
+
+  
+  CREATE TABLE public.entityattributevalue
+(
+  entityattributeid integer NOT NULL,
+  rowid integer NOT NULL,
+  value character varying(50000),
+  comment character varying(500),
+  "ValidTo" date NOT NULL DEFAULT '9999-12-31'::date,
+  "dateCreated" date DEFAULT now(),
+  "lastUpdated" date DEFAULT now(),
+  CONSTRAINT "PK_entityattributevalue" PRIMARY KEY (entityattributeid, rowid, "ValidTo")
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE public.entityattributevalue
+  OWNER TO postgres;
+
+  CREATE TABLE public.funder
+(
+  funderid integer NOT NULL DEFAULT nextval('funder_id_seq'::regclass),
+  uid character varying(11),
+  name character varying(250),
+  description character varying(500),
+  "ValidFrom" date DEFAULT now(),
+  "ValidTo" date DEFAULT '9999-12-31'::date,
+  "dateCreated" date DEFAULT now(),
+  "lastUpdated" date DEFAULT now(),
+  CONSTRAINT funder_pkey PRIMARY KEY (funderid)
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE public.funder
+  OWNER TO postgres;
+  
+  CREATE TABLE public.organisation
+(
+  organisationid integer NOT NULL DEFAULT nextval('organisation_id_seq'::regclass),
+  uid character varying(11),
+  name character varying(250),
+  description character varying(500),
+  code character varying(50),
+  parentpath character varying(150),
+  "ValidFrom" date DEFAULT now(),
+  "ValidTo" date DEFAULT '9999-12-31'::date,
+  "dateCreated" date DEFAULT now(),
+  "lastUpdated" date DEFAULT now(),
+  CONSTRAINT organisation_pkey PRIMARY KEY (organisationid)
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE public.organisation
+  OWNER TO postgres;
+
+  
+  CREATE TABLE public.organisationcoordinate
+(
+  organisationcoordinateid integer NOT NULL DEFAULT nextval('organisationcoordinate_id_seq'::regclass),
+  coordinateid integer NOT NULL,
+  organisationid integer NOT NULL,
+  "ValidFrom" date DEFAULT now(),
+  "ValidTo" date DEFAULT '9999-12-31'::date,
+  "dateCreated" date DEFAULT now(),
+  "lastUpdated" date DEFAULT now()
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE public.organisationcoordinate
+  OWNER TO postgres;
+
+  
+  CREATE TABLE public.organisationcoordinatevalue
+(
+  organisationcoordinateid integer,
+  entityattributeid integer NOT NULL,
+  rowid integer NOT NULL,
+  value character varying(500),
+  "ValidTo" date DEFAULT '9999-12-31'::date,
+  "dateCreated" date DEFAULT now(),
+  "lastUpdated" date DEFAULT now()
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE public.organisationcoordinatevalue
+  OWNER TO postgres;
+
+  
+  CREATE TABLE public.organisationfunder
+(
+  organisationid integer,
+  funderid integer,
+  "ValidTo" date DEFAULT '9999-12-31'::date,
+  "dateCreated" date DEFAULT now(),
+  "lastUpdated" date DEFAULT now(),
+  CONSTRAINT organisationfunder_funderid_fkey FOREIGN KEY (funderid)
+      REFERENCES public.funder (funderid) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT organisationfunder_organisationid_fkey FOREIGN KEY (organisationid)
+      REFERENCES public.organisation (organisationid) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE public.organisationfunder
+  OWNER TO postgres;
+
+  
+  CREATE TABLE public.organisationpartner
+(
+  organisationid integer,
+  partnerid integer,
+  "ValidTo" date DEFAULT '9999-12-31'::date,
+  "dateCreated" date DEFAULT now(),
+  "lastUpdated" date DEFAULT now(),
+  CONSTRAINT organisationpartner_organisationid_fkey FOREIGN KEY (organisationid)
+      REFERENCES public.organisation (organisationid) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT organisationpartner_partnerid_fkey FOREIGN KEY (partnerid)
+      REFERENCES public.partner (partnerid) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE public.organisationpartner
+  OWNER TO postgres;
+
+  
+  CREATE TABLE public.organisationservicelevel
+(
+  organisationservicelevelid integer NOT NULL DEFAULT nextval('organisationservicelevelid_id_seq'::regclass),
+  organisationid integer,
+  serviceid integer,
+  level integer,
+  "ValidTo" date DEFAULT '9999-12-31'::date,
+  "dateCreated" date DEFAULT now(),
+  "lastUpdated" date DEFAULT now(),
+  CONSTRAINT organisationservicelevel_pkey PRIMARY KEY (organisationservicelevelid),
+  CONSTRAINT organisationservicelevel_organisation FOREIGN KEY (organisationid)
+      REFERENCES public.organisation (organisationid) MATCH FULL
+      ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT organisationservicelevel_organisationid_fkey FOREIGN KEY (organisationid)
+      REFERENCES public.organisation (organisationid) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT organisationservicelevel_serviceid_fkey FOREIGN KEY (serviceid)
+      REFERENCES public.service (serviceid) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE public.organisationservicelevel
+  OWNER TO postgres;
+
+  
+  CREATE TABLE public.organisationtargetgroup
+(
+  organisationid integer,
+  targetgroupid integer,
+  "ValidTo" date DEFAULT '9999-12-31'::date,
+  "dateCreated" date DEFAULT now(),
+  "lastUpdated" date DEFAULT now(),
+  CONSTRAINT organisationtargetgroup_organisationid_fkey FOREIGN KEY (organisationid)
+      REFERENCES public.organisation (organisationid) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT organisationtargetgroup_targetgroup_fkey FOREIGN KEY (targetgroupid)
+      REFERENCES public.targetgroup (targetgroupid) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE public.organisationtargetgroup
+  OWNER TO postgres;
+
+  
+  CREATE TABLE public.partner
+(
+  partnerid integer NOT NULL DEFAULT nextval('partner_id_seq'::regclass),
+  uid character varying(11),
+  name character varying(250),
+  description character varying(500),
+  "ValidFrom" date DEFAULT now(),
+  "ValidTo" date DEFAULT '9999-12-31'::date,
+  "dateCreated" date DEFAULT now(),
+  "lastUpdated" date DEFAULT now(),
+  CONSTRAINT partner_pkey PRIMARY KEY (partnerid)
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE public.partner
+  OWNER TO postgres;
+  
+  
+CREATE TABLE public.person
+(
+  personid integer NOT NULL DEFAULT nextval('person_id_seq'::regclass),
+  uid character varying(11),
+  firstname character varying(50),
+  surname character varying(50),
+  level integer,
+  "ValidTo" date DEFAULT '9999-12-31'::date,
+  "dateCreated" date DEFAULT now(),
+  "lastUpdated" date DEFAULT now(),
+  CONSTRAINT person_pkey PRIMARY KEY (personid)
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE public.person
+  OWNER TO postgres;
+
+  
+  CREATE TABLE public.service
+(
+  serviceid integer NOT NULL DEFAULT nextval('service_id_seq'::regclass),
+  uid character varying(11),
+  name character varying(250),
+  description character varying(500),
+  "ValidFrom" date DEFAULT now(),
+  "ValidTo" date DEFAULT '9999-12-31'::date,
+  "dateCreated" date DEFAULT now(),
+  "lastUpdated" date DEFAULT now(),
+  CONSTRAINT service_pkey PRIMARY KEY (serviceid)
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE public.service
+  OWNER TO postgres;
+  
+  CREATE TABLE public.targetgroup
+(
+  targetgroupid integer NOT NULL DEFAULT nextval('targetgroupid_id_seq'::regclass),
+  uid character varying(11),
+  name character varying(250),
+  description character varying(500),
+  "ValidFrom" date DEFAULT now(),
+  "ValidTo" date DEFAULT '9999-12-31'::date,
+  "dateCreated" date DEFAULT now(),
+  "lastUpdated" date DEFAULT now(),
+  CONSTRAINT targetgroup_pkey PRIMARY KEY (targetgroupid)
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE public.targetgroup
+  OWNER TO postgres;
+
+  
+  CREATE TABLE public.trxpost
+(
+  trxpostid integer NOT NULL DEFAULT nextval('trxpost_id_seq'::regclass),
+  uid character varying(11),
+  status integer DEFAULT 0,
+  type character varying(50),
+  data character varying(5000),
+  result character varying(5000),
+  resultuid character varying(11),
+  "dateCreated" date DEFAULT now(),
+  "lastUpdated" date DEFAULT now(),
+  CONSTRAINT trxpost_pkey PRIMARY KEY (trxpostid)
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE public.trxpost
+  OWNER TO postgres;
+  
+  
+  CREATE TABLE public.trxprocessing
+(
+  trxpostid integer,
+  uid character varying(11),
+  uid1 character varying(11),
+  row1id integer,
+  row2id integer,
+  source character varying(50),
+  entity character varying(50),
+  "raw" character varying(50000),
+  value character varying(50000),
+  status integer DEFAULT 0,
+  "ValidFrom" date,
+  "ValidTo" date NOT NULL DEFAULT '9999-12-31'::date,
+  "dateCreated" date DEFAULT now(),
+  "lastUpdated" date DEFAULT now()
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE public.trxprocessing
+  OWNER TO postgres;
+  
+  CREATE TABLE public."user"
+(
+  userid integer NOT NULL DEFAULT nextval('user_id_seq'::regclass),
+  uid character varying(11),
+  name character varying(50),
+  firstname character varying(50),
+  surname character varying(50),
+  password character varying(5000),
+  "ValidFrom" date DEFAULT now(),
+  "ValidTo" date DEFAULT '9999-12-31'::date,
+  "dateCreated" date DEFAULT now(),
+  "lastUpdated" date DEFAULT now(),
+  CONSTRAINT user_pkey PRIMARY KEY (userid)
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE public."user"
+  OWNER TO postgres;
+
+  
+  CREATE TABLE public.userlog
+(
+  userlogid integer NOT NULL DEFAULT nextval('userlog_id_seq'::regclass),
+  userid integer,
+  credentials character varying(500),
+  data character varying(5000),
+  success integer DEFAULT 0,
+  "dateCreated" date DEFAULT now(),
+  CONSTRAINT userlog_pkey PRIMARY KEY (userlogid)
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE public.userlog
+  OWNER TO postgres;
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+CREATE OR REPLACE FUNCTION public.trxprocesstrigger()
+  RETURNS trigger AS
+$BODY$
+BEGIN
+
+	IF NEW.type = 'organisationRegistration' THEN
+
+		delete from trxprocessing where uid = NEW.uid;
+		insert into trxprocessing (trxpostid,uid,source,raw) select NEW.trxpostid,NEW.uid, * from json_each_text( NEW.data::json );
+
+		NEW.resultuid = issue_uid();
+		NEW.status = 1;
+
+		update trxprocessing set uid1 = NEW.resultuid where uid = NEW.uid;
+
+		update trxprocessing set entity = 'organisation' where source like 'org_%' AND uid = NEW.uid;
+		update trxprocessing set entity = 'attribute' where source like 'attr_%' AND uid = NEW.uid;
+		update trxprocessing set entity = 'partner' where source like 'part_%' AND uid = NEW.uid;
+		update trxprocessing set entity = 'funder' where source like 'fund_%' AND uid = NEW.uid;
+		update trxprocessing set entity = 'targetgroup' where source like 'targ_%' AND uid = NEW.uid;
+		update trxprocessing set entity = 'service' where source like 'serv_%' AND uid = NEW.uid;
+		update trxprocessing set entity = 'coordinate' where source = 'org_coordinates' AND uid = NEW.uid;
+		update trxprocessing set value = 1 where raw = 'true' AND uid = NEW.uid;
+		update trxprocessing set row1id = split_part(source,'_',3)::integer, row2id = split_part(source,'_',2)::integer where entity = 'service' AND uid = NEW.uid;
+		update trxprocessing set row1id = split_part(source,'_',2)::integer where entity in ('attribute','funder','targetgroup','partner') AND uid = NEW.uid;
+
+		NEW.status = 2;
+
+		insert into organisation (uid,name,description,"ValidFrom") SELECT NEW.resultuid,(select value from json_each_text(NEW.data::json) where key = 'org_name')::text, (select value from json_each_text(NEW.data::json) where key = 'org_description')::text, (select value from json_each_text(NEW.data::json) where key = 'org_validfrom')::text::date;
+		insert into organisationfunder (organisationid,funderid) SELECT (select organisationid from organisation where uid = NEW.resultuid limit 1), row1id from trxprocessing where entity = 'funder' AND uid = NEW.uid;
+		insert into organisationpartner (organisationid,partnerid) SELECT (select organisationid from organisation where uid = NEW.resultuid limit 1), row1id from trxprocessing where entity = 'partner' AND uid = NEW.uid;
+		insert into organisationtargetgroup (organisationid,targetgroupid) SELECT (select organisationid from organisation where uid = NEW.resultuid limit 1), row1id from trxprocessing where entity = 'targetgroup' AND uid = NEW.uid;
+		insert into organisationservicelevel (organisationid,serviceid,level) SELECT (select organisationid from organisation where uid = NEW.resultuid limit 1), row1id, row1id from trxprocessing where entity = 'service' AND uid = NEW.uid;
+		insert into entityattributevalue (entityattributeid,rowid,value ) SELECT ea.entityattributeid, (select organisationid from organisation where uid = NEW.resultuid limit 1), tmp."raw" FROM public.trxprocessing tmp, public.entityattribute ea WHERE ea.attributeid = tmp.row1id AND tmp.entity = 'attribute' AND uid = NEW.uid;
+		IF EXISTS (select raw from trxprocessing WHERE uid = NEW.uid AND source = 'org_coordinates') THEN
+			insert into coordinate ("geometry.coordinates",sourceuid) SELECT (select value from json_each_text(NEW.data::json) where key = 'org_coordinates')::text, NEW.uid;
+			insert into organisationcoordinate (organisationid,coordinateid) SELECT (select organisationid from organisation where uid = NEW.resultuid limit 1), (select coordinateid from coordinate where sourceuid = NEW.uid AND "geometry.coordinates" in ((select raw from trxprocessing WHERE uid = NEW.uid AND source = 'org_coordinates') ) limit 1);
+		END IF;
+
+		NEW.status = 3;
+
+		delete from trxprocessing where uid = NEW.uid;
+
+		NEW.status = 4;
+
+	/* ELSE */
+
+	END IF;
+
+	RETURN NEW;
+
+END;
+
+$BODY$
+  LANGUAGE plpgsql VOLATILE
+  COST 100;
+ALTER FUNCTION public.trxprocesstrigger()
+  OWNER TO postgres;
+
+  
+  CREATE TRIGGER trxprocessTrigger BEFORE INSERT ON trxpost
+    FOR EACH ROW EXECUTE PROCEDURE trxprocessTrigger();
+
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+CREATE OR REPLACE VIEW public."coordinateOrganisation" AS 
+ SELECT organisation.organisationid,
+    organisation.uid,
+    organisation.name,
+    organisation.description,
+    coordinate."geometry.type",
+    coordinate."geometry.coordinates"
+   FROM organisation,
+    organisationcoordinate,
+    coordinate
+  WHERE organisationcoordinate.coordinateid = coordinate.coordinateid AND organisationcoordinate.organisationid = organisation.organisationid;
+
+ALTER TABLE public."coordinateOrganisation"
+  OWNER TO postgres;
+
+  
+  CREATE OR REPLACE VIEW public."coordinateOrganisationToday" AS 
+ SELECT organisation.organisationid,
+    organisation.uid,
+    organisation.name,
+    organisation.description,
+    coordinate."geometry.type",
+    coordinate."geometry.coordinates"
+   FROM organisation,
+    organisationcoordinate,
+    coordinate
+  WHERE organisationcoordinate.coordinateid = coordinate.coordinateid AND organisationcoordinate.organisationid = organisation.organisationid AND coordinate."dateCreated" = now()::date;
+
+ALTER TABLE public."coordinateOrganisationToday"
+  OWNER TO postgres;
+
+  
+  CREATE OR REPLACE VIEW public."entityColumns" AS 
+ SELECT entityattribute.entityattributeid,
+    attribute.name,
+    entityattribute.entityname,
+    entityattribute.sortorder
+   FROM attribute,
+    entityattribute
+  WHERE entityattribute.attributeid = attribute.attributeid
+  ORDER BY entityattribute.sortorder;
+
+ALTER TABLE public."entityColumns"
+  OWNER TO postgres;
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+CREATE OR REPLACE FUNCTION public.distancekm(
+    lat1 double precision,
+    lon1 double precision,
+    lat2 double precision,
+    lon2 double precision)
+  RETURNS double precision AS
+$BODY$
+DECLARE                                                   
+    x float = 111.12 * (lat2 - lat1);                           
+    y float = 111.12 * (lon2 - lon1) * cos(lat1 / 92.215);        
+BEGIN                                                     
+    RETURN sqrt(x * x + y * y);                               
+END  
+$BODY$
+  LANGUAGE plpgsql VOLATILE
+  COST 100;
+ALTER FUNCTION public.distancekm(double precision, double precision, double precision, double precision)
+  OWNER TO postgres;
+
+  
+  CREATE OR REPLACE FUNCTION public.distancemile(
+    lat1 double precision,
+    lon1 double precision,
+    lat2 double precision,
+    lon2 double precision)
+  RETURNS double precision AS
+$BODY$
+DECLARE                                                   
+    x float = 69.1 * (lat2 - lat1);                           
+    y float = 69.1 * (lon2 - lon1) * cos(lat1 / 57.3);        
+BEGIN                                                     
+    RETURN sqrt(x * x + y * y);                               
+END  
+$BODY$
+  LANGUAGE plpgsql VOLATILE
+  COST 100;
+ALTER FUNCTION public.distancemile(double precision, double precision, double precision, double precision)
+  OWNER TO postgres;
+
+  
+  CREATE OR REPLACE FUNCTION public.random_range(
+    integer,
+    integer)
+  RETURNS integer AS
+$BODY$
+        SELECT ($1 + FLOOR(($2 - $1 + 1) * random() ))::INTEGER;
+    $BODY$
+  LANGUAGE sql VOLATILE
+  COST 100;
+ALTER FUNCTION public.random_range(integer, integer)
+  OWNER TO postgres;
+
+  
+  CREATE OR REPLACE FUNCTION public.random_text_simple(length integer)
+  RETURNS text AS
+$BODY$
+    DECLARE
+        possible_chars TEXT := '0123456789AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz';
+        output TEXT := '';
+        i INT4;
+        pos INT4;
+    BEGIN
+
+        FOR i IN 1..length LOOP
+            pos := random_range(1, length(possible_chars));
+            output := output || substr(possible_chars, pos, 1);
+        END LOOP;
+
+        RETURN output;
+    END;
+    $BODY$
+  LANGUAGE plpgsql VOLATILE
+  COST 100;
+ALTER FUNCTION public.random_text_simple(integer)
+  OWNER TO postgres;
+
+  
+  
+CREATE OR REPLACE FUNCTION public.issue_uid()
+  RETURNS text AS
+$BODY$
+DECLARE
+    new_uid text;
+BEGIN
+
+    RETURN random_text_simple(11);
+END;
+$BODY$
+  LANGUAGE plpgsql VOLATILE
+  COST 100;
+ALTER FUNCTION public.issue_uid()
+  OWNER TO postgres;

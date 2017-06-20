@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Focus for Impact: OrgRegistry v0.1</title>
+	
+	<link rel="icon" href="img/sanaclogo.png">
+
+    <link rel="stylesheet" type="text/css" href="css/leaflet.css" />
+	<link rel="stylesheet" type="text/css" href="css/font-awesome.css">
+	<link rel="stylesheet" type="text/css" href="css/bootstrap.min.css">
+	<link rel="stylesheet" type="text/css" href="css/leaflet.awesome-markers.css">
+    <link rel="stylesheet" type="text/css" href="css/w2ui.min.css" />
+    <link rel="stylesheet" type="text/css" href="css/sanac.css">
+
+    <script type="text/javascript" src="js/leaflet.js"></script>
+	<script type="text/javascript" src="js/leaflet.awesome-markers.js"></script>
+	<script type="text/javascript" src="js/jquery-1.11.3.min.js"></script>
+    <script type="text/javascript" src="js/ext-all.js"></script>
+	<script type="text/javascript" src="js/w2ui.min.js"></script>
+
+
+    <style>
+		#layout {width: 100%; height: 100%;position: absolute; left: 0px; right: 0px; top: 0px; bottom: 0%;}
+        #map1 { width: 100%; height: 96%; padding:0; margin:0;border:0;border-radius:0;background-image:-webkit-linear-gradient(top, #ffffff 0%, #ffffff 100%);cursor: default;}
+		#map2 { width: 100%; height: 100%; padding:0; margin:0;border:0;border-radius:0;background-image:-webkit-linear-gradient(top, #ffffff 0%, #ffffff 100%);cursor: default;}
+		#dataGrid { width: 100%; height: 96%; padding:0; margin:0;border:0;border-radius:0;background-image:-webkit-linear-gradient(top, #ffffff 0%, #ffffff 100%);cursor: default;}
+		
+		input.range {width:100%;}
+	</style>
+
+</head>
+
+<body style="margin:0;">
+
+<div id="layout" style=" "></div>
+
+<script type="text/javascript">
+
+	var g_myData;
+	var g_map;
+	var g_baseLayer;
+	var g_baseMapLayerOpacity = 1;
+	var g_mapPadding = 100; // increases width of map to ensure dragging of map results in loaded base-tiles
+	var g_clickedLatLong;
+	var g_geoJSONlayerObj;
+	var g_infoControl;
+	var g_LabelField = 'name';
+	var g_prtcl = (window.location.origin).split('://')[0];
+	var g_PGurl = ((1 == 0) ? '://localhost:3000' : '://reg-sanac.hisp.org:3000');
+
+	$(function () {
+
+		var pstyle = 'border: 1px solid #dfdfdf; padding: 0;';
+
+		$('#layout').w2layout({
+			name: 'layout',
+			panels: [
+				{ type: 'top', size: 56, resizable: false, style: pstyle, content: getTopContent() },
+				{ type: 'left', size: 200, resizable: true, style: pstyle, content: 'left' },
+				{ type: 'main', style: pstyle + 'border-top: 0px;width:100%;height:100%;', content: '<div id="dataGrid" style="display:none;"></div><div id="map1" style="display:none;"></div><div id="map2" style="display:none;"></div></div>', 
+				}/*,
+				{ type: 'preview', size: '180', resizable: true, hidden: false, style: pstyle, content: 'preview' } */
+			]
+		});
+
+		w2ui['layout'].content('left', $().w2sidebar({
+			name: 'sidebar',
+			img: null,
+			nodes: [ 
+				{ id: 'level-1', text: 'Mapped', img: 'icon-folder', expanded: true, group: true,
+				  nodes: [ { id: 'level-1-1', text: 'Organisations (All)' },
+						   { id: 'level-1-2', text: 'Organisations (Today)' }
+						 ]
+				},
+				{ id: 'level-2', text: 'Grid', img: 'icon-folder', expanded: true, group: true,
+				  nodes: [ { id: 'level-2-1', text: 'Organisations' },
+						   { id: 'level-2-2', text: 'Registrations' },
+						   { id: 'level-2-3', text: 'Transaction table' }
+						 ]
+				}
+			],
+			onClick: function (event) {
+			   switch (event.target) {
+					case 'level-1-1':
+						LoadOrgsMap('coordinateOrganisation','');
+						break;
+					case 'level-1-2':
+						LoadOrgsMap('coordinateOrganisationToday','');
+						break;
+					case 'level-2-1':
+						LoadOrgs('');
+						break;
+					case 'level-2-2':
+						LoadTransactions('');
+						break;
+					case 'level-2-3':
+						LoadTempProcessing('');
+						break;
+					case 'level-2-4':
+						LoadServices('');
+						break;
+					case 'level-2-5':
+						LoadFunders('');
+						break;
+					case 'level-2-6':
+						LoadTempProcessing('');
+						break;
+					default:
+						break
+				}
+
+			}
+		}));
+
+		$('.w2ui-panel-content')[0].style="width:100%;height:100%;display:block;top:0px;overflow:none;border:0;border-radius:0;padding:0px;background-Color:#373a3c;";
+
+
+		InitialiseMap();
+		InitialiseOrgs();
+		
+		
+
+		function showMap(){
+			document.getElementById('dataGrid').style.display = 'none';
+			document.getElementById('map1').style.display = '';
+		}
+		
+		function showTable(){
+			document.getElementById('dataGrid').style.display = '';
+			document.getElementById('map1').style.display = 'none';
+		}
+
+		function InitialiseMap(){
+		
+			showMap();
+
+			g_map = new L.map('map1', { renderer: L.svg({ padding: g_mapPadding }) }).setView([-28.5, 26], 6);
+			g_map.on('click', function(e) { g_clickedLatLong = (e.latlng.lat + ", " + e.latlng.lng); console.log(g_clickedLatLong);});
+			g_map.on('keypress', function(e) { console.log(e); console.log(e.originalEvent.ctrlKey); console.log(e.originalEvent.code) });
+
+			var Esri_DeLorme = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/Specialty/DeLorme_World_Base_Map/MapServer/tile/{z}/{y}/{x}', {opacity: g_baseMapLayerOpacity, attribution: 'Tiles &copy; Esri &mdash; Copyright: &copy;2012 DeLorme',minZoom: 1,maxZoom: 11});
+			var Esri_WorldGrayCanvas = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {opacity: g_baseMapLayerOpacity, attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',maxZoom: 16});
+			var Esri_WorldImagery = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {opacity: g_baseMapLayerOpacity, attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'});
+			//var Esri_WorldPhysical = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}', {opacity: g_baseMapLayerOpacity, attribution: 'Tiles &copy; Esri &mdash; Source: US National Park Service',maxZoom: 8});
+			var Esri_WorldStreetMap = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {opacity: g_baseMapLayerOpacity, attribution: 'Tiles &copy; Esri &mdash; Source: Esri'});
+			var Esri_WorldShadedRelief = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}', {opacity: g_baseMapLayerOpacity, attribution: 'Tiles &copy; Esri &mdash; Source: Esri',	maxZoom: 13});
+			var OpenMapSurfer_Roads = L.tileLayer('http://korona.geog.uni-heidelberg.de/tiles/roads/x={x}&y={y}&z={z}', {opacity: g_baseMapLayerOpacity, maxZoom: 20,attribution: 'Imagery from <a href="http://giscience.uni-hd.de/">GIScience Research Group @ University of Heidelberg</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'});
+			var Open_StreetMap = L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {opacity: g_baseMapLayerOpacity, attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors',});
+			var OpenTopoMap = L.tileLayer('http://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {opacity: g_baseMapLayerOpacity, maxZoom: 17,attribution: 'Map data: &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)'});
+			var OpenStreetMap_BlackAndWhite = L.tileLayer('http://{s}.tiles.wmflabs.org/bw-mapnik/{z}/{x}/{y}.png', {opacity: g_baseMapLayerOpacity, maxZoom: 18,attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'});
+
+			g_baseMapCollection = {
+				"PRINT: Esri.DeLorme": Esri_DeLorme,
+				"PRINT: Esri.WorldGrayCanvas": Esri_WorldGrayCanvas,
+				"PRINT: Esri.WorldImagery": Esri_WorldImagery,
+				"PRINT: Esri.WorldStreetMap": Esri_WorldStreetMap,
+				"PRINT: Esri.WorldShadedRelief": Esri_WorldShadedRelief,
+				"PRINT: Open.MapSurfer.Roads": OpenMapSurfer_Roads,
+				"PRINT: StreetMap": Open_StreetMap,
+				"StreetMap.BlackAndWhite":OpenStreetMap_BlackAndWhite,
+				"Topographic":OpenTopoMap
+			};
+
+			var layerControl = L.control.layers(g_baseMapCollection, null, {position:'bottomright', opacitySlider: true}).addTo(g_map);
+
+			g_baseLayer = Esri_WorldStreetMap.addTo(g_map);
+
+			// control that shows state info on hover
+			g_infoControl = L.control();
+
+			g_infoControl.onAdd = function (map) {
+				this._div = L.DomUtil.create('div', 'info');
+				this.update();
+				return this._div;
+			};
+
+			g_infoControl.update = function (props) {
+				if (props == undefined){
+					this._div.innerHTML = '';
+					this._div.style = ("display:none;");
+				}
+				else{
+					this._div.innerHTML = ReturnHTMLpreview(JSON.stringify(props));
+						var e = window.event;
+						this._div.style = ("display:block;"); 
+				}
+			};
+
+			g_infoControl.addTo(g_map);
+
+		}
+
+		function clearMarkersOrgMap(){
+			g_map.eachLayer(function (layer) {
+				if (layer._latlng != undefined) {
+					g_map.removeLayer(layer);
+				}
+			});
+		}
+
+		function InitialiseOrgs(){
+
+			var myDataURL = (g_prtcl + g_PGurl + '/organisation');
+
+			$('#dataGrid').w2grid({ 
+				name: 'grid', 
+				header: 'List of Registered Organisations',
+				datasource: '',
+				columns: [                
+					{ field: 'recid', caption: 'id', size: '40px', sortable: true },
+					{ field: 'uid', caption: 'uid', size: '80px', sortable: true },
+					{ field: 'name', caption: 'name', size: '20%', sortable: true },
+					{ field: 'description', caption: 'description', size: '20%', sortable: true },
+					{ field: 'code', caption: 'code', size: '90px', sortable: true },
+					{ field: 'dateCreated', caption: 'dateCreated', size: '90px', sortable: true },
+					{ field: 'lastUpdated', caption: 'lastUpdated', size: '90px', sortable: true }
+				],
+				show: {
+					header: false,
+					toolbar: true,
+					footer: true,
+					lineNumbers: true,
+					selectColumn: false,
+					expandColumn: true
+				},
+				searches: [
+					{ type: 'int',  field: 'recid', caption: 'id' },
+					{ type: 'text',  field: 'uid', caption: 'uid' },
+					{ type: 'text', field: 'name', caption: 'name' },
+					{ type: 'text', field: 'description', caption: 'description' },
+					{ type: 'text', field: 'code', caption: 'code' }
+				],
+				onExpand: function (event) {
+					//console.log(event);
+					//console.log(this);
+					if (w2ui.grid.datasource == 'trxpost'){
+						$('#'+event.box_id).html('<div style="padding: 10px; height: 100px">Expanded content</div>');
+					} else {
+						$('#'+event.box_id).html('<div style="padding: 10px; height: 100px">Expanded content</div>');
+					}
+				}
+
+			});
+
+		}
+
+		function LoadOrgsMap(sobject,sfilter){
+
+			if (document.getElementById('dataGrid').style.display != 'none'){
+				document.getElementById('dataGrid').style.display = 'none';
+				document.getElementById('map1').style.display = '';
+			}
+
+			var myDataURL = (g_prtcl + g_PGurl + '/' + sobject);
+
+			myDataURL += ((sfilter.length) ? ('?' + sfilter) : '');
+
+			$.ajax({
+				url: myDataURL,
+				success : function(data){
+
+					loadCoordinatePoints(data);
+
+				}
+			});
+		}
+		
+		function LoadTransactions(sfilter){
+
+			if (document.getElementById('map1').style.display != 'none'){
+				document.getElementById('map1').style.display = 'none';
+				document.getElementById('dataGrid').style.display = '';
+			}
+
+			var myDataURL = (g_prtcl + g_PGurl + '/trxpost');
+
+			myDataURL += ((sfilter.length) ? ('?' + sfilter) : '');
+
+			w2ui.grid.clear();
+			w2ui.grid.show.lineNumbers = true;
+			w2ui.grid.columns = [
+							{ field: 'recid', caption: 'id', size: '40px', sortable: true },
+							{ field: 'uid', caption: 'uid', size: '80px', sortable: true },
+							{ field: 'status', caption: 'status', size: '80px', sortable: true },
+							{ field: 'type', caption: 'type', size: '80px', sortable: true },
+							{ field: 'data', caption: 'data', size: '20%', sortable: true },
+							{ field: 'resultuid', caption: 'resultuid', size: '80px', sortable: true },
+							{ field: 'dateCreated', caption: 'dateCreated', size: '90px', sortable: true },
+							{ field: 'lastUpdated', caption: 'lastUpdated', size: '90px', sortable: true }
+						];
+			console.log(myDataURL);
+
+			$.ajax({
+				url: myDataURL,
+				success : function(data){
+
+					var w2Data = JSON.parse('{  "total":"' + (data.length) + '", "records":' + JSON.stringify(data).replace('trxpostid','recid') + ' }');
+
+					w2ui.grid.header = 'List of recorded REGISTRATIONS';
+					w2ui.grid.datasource = 'trxpost'
+					w2ui.grid.records = JSON.parse(JSON.stringify(data).replace(/trxpostid/g,'recid'));
+					w2ui.grid.total = data.length;
+					w2ui.grid.refresh();
+
+				}
+			});
+
+		}
+		
+		function LoadTempProcessing(sfilter){
+
+			if (document.getElementById('map1').style.display != 'none'){
+				document.getElementById('map1').style.display = 'none';
+				document.getElementById('dataGrid').style.display = '';
+			}
+
+			var myDataURL = (g_prtcl + g_PGurl + '/trxprocessing');
+
+			myDataURL += ((sfilter.length) ? ('?' + sfilter) : '');
+
+			w2ui.grid.clear();
+			w2ui.grid.show.lineNumbers = true;
+			w2ui.grid.datasource = 'trxprocessing'
+			w2ui.grid.columns = [
+							{ field: 'recid', caption: 'id', size: '40px', sortable: true },
+							{ field: 'uid', caption: 'uid', size: '80px', sortable: true },
+							{ field: 'uid1', caption: 'uid1', size: '80px', sortable: true },
+							{ field: 'row1id', caption: 'row1id', size: '80px', sortable: true },
+							{ field: 'row2id', caption: 'row2id', size: '80px', sortable: true },
+							{ field: 'source', caption: 'source', size: '20%', sortable: true },
+							{ field: 'entity', caption: 'entity', size: '20%', sortable: true },
+							{ field: 'raw', caption: 'raw', size: '40%', sortable: true },
+							{ field: 'value', caption: 'value', size: '40%', sortable: true },
+							{ field: 'dateCreated', caption: 'dateCreated', size: '90px', sortable: true },
+							{ field: 'lastUpdated', caption: 'lastUpdated', size: '90px', sortable: true }
+						];
+			console.log(myDataURL);
+
+			$.ajax({
+				url: myDataURL,
+				success : function(data){
+
+					var w2Data = JSON.parse('{  "total":"' + (data.length) + '", "records":' + JSON.stringify(data).replace('trxpostid','recid') + ' }');
+
+					w2ui.grid.header = 'List of recorded Trx'
+					w2ui.grid.records = JSON.parse(JSON.stringify(data).replace(/trxpostid/g,'recid'));
+					w2ui.grid.total = data.length;
+					w2ui.grid.refresh();
+
+				}
+			});
+		}
+
+		function LoadOrgs(sfilter){
+
+			if (document.getElementById('map1').style.display != 'none'){
+				document.getElementById('map1').style.display = 'none';
+				document.getElementById('dataGrid').style.display = '';
+			}
+
+			var myDataURL = (g_prtcl + g_PGurl + '/organisation');
+
+			myDataURL += ((sfilter.length) ? ('?' + sfilter) : '');
+
+			w2ui.grid.clear();
+			w2ui.grid.datasource = 'organisation'
+			w2ui.grid.show.lineNumbers = true;
+			w2ui.grid.columns = [
+							{ field: 'recid', caption: 'id', size: '40px', sortable: true },
+							{ field: 'uid', caption: 'uid', size: '80px', sortable: true },
+							{ field: 'name', caption: 'name', size: '20%', sortable: true },
+							{ field: 'description', caption: 'description', size: '20%', sortable: true },
+							{ field: 'code', caption: 'code', size: '90px', sortable: true },
+							{ field: 'ValidFrom', caption: 'validfrom', size: '90px', sortable: true },
+							{ field: 'ValidTo', caption: 'validto', size: '90px', sortable: true },
+							{ field: 'dateCreated', caption: 'dateCreated', size: '90px', sortable: true }
+						];
+			console.log(myDataURL);
+
+			$.ajax({
+				url: myDataURL,
+				success : function(data){
+
+					var w2Data = JSON.parse('{  "total":"' + (data.length) + '", "records":' + JSON.stringify(data).replace('organisationid','recid') + ' }');
+
+					w2ui.grid.header = 'List of Registered ORGANISATIONS'
+					w2ui.grid.records = JSON.parse(JSON.stringify(data).replace(/organisationid/g,'recid'));
+					w2ui.grid.total = data.length;
+					w2ui.grid.refresh();
+
+				}
+
+			});
+
+		}
+
+
+		function LoadPartners(sfilter){
+
+			if (document.getElementById('map1').style.display != 'none'){
+				document.getElementById('map1').style.display = 'none';
+				document.getElementById('dataGrid').style.display = '';
+			}
+
+			var myDataURL = (g_prtcl + g_PGurl + '/partner');
+
+			myDataURL += ((sfilter.length) ? ('?' + sfilter) : '');
+
+			w2ui.grid.clear();
+			w2ui.grid.datasource = 'partner'
+			w2ui.grid.show.lineNumbers = false;
+			w2ui.grid.columns = [
+							{ field: 'recid', caption: 'id', size: '40px', sortable: true },
+							{ field: 'name', caption: 'name', size: '20%', sortable: true },
+							{ field: 'description', caption: 'description', size: '20%', sortable: true },
+							{ field: 'ValidFrom', caption: 'validfrom', size: '90px', sortable: true },
+							{ field: 'ValidTo', caption: 'validto', size: '90px', sortable: true },
+							{ field: 'dateCreated', caption: 'dateCreated', size: '90px', sortable: true }
+						];
+			console.log(myDataURL);
+
+			$.ajax({
+				url: myDataURL,
+				success : function(data){
+
+					var w2Data = JSON.parse('{  "total":"' + (data.length) + '", "records":' + JSON.stringify(data).replace('organisationid','recid') + ' }');
+
+					w2ui.grid.header = 'List of Registered PARTNERS'
+					w2ui.grid.records = JSON.parse(JSON.stringify(data).replace(/partnerid/g,'recid'));
+					w2ui.grid.total = data.length;
+					w2ui.grid.refresh();
+
+				}
+
+			});
+
+		}
+
+		function LoadFunders(sfilter){
+
+			if (document.getElementById('map1').style.display != 'none'){
+				document.getElementById('map1').style.display = 'none';
+				document.getElementById('dataGrid').style.display = '';
+			}
+
+			var myDataURL = (g_prtcl + g_PGurl + '/funder');
+
+			myDataURL += ((sfilter.length) ? ('?' + sfilter) : '');
+
+			w2ui.grid.clear();
+			w2ui.grid.show.lineNumbers = false;
+			w2ui.grid.columns = [
+							{ field: 'recid', caption: 'id', size: '40px', sortable: true },
+							{ field: 'name', caption: 'name', size: '20%', sortable: true },
+							{ field: 'description', caption: 'description', size: '20%', sortable: true },
+							{ field: 'ValidFrom', caption: 'validfrom', size: '90px', sortable: true },
+							{ field: 'ValidTo', caption: 'validto', size: '90px', sortable: true },
+							{ field: 'dateCreated', caption: 'dateCreated', size: '90px', sortable: true }
+						];
+			console.log(myDataURL);
+
+			$.ajax({
+				url: myDataURL,
+				success : function(data){
+
+					var w2Data = JSON.parse('{  "total":"' + (data.length) + '", "records":' + JSON.stringify(data).replace('organisationid','recid') + ' }');
+
+					w2ui.grid.header = 'List of Registered FUNDERS'
+					w2ui.grid.records = JSON.parse(JSON.stringify(data).replace(/funderid/g,'recid'));
+					w2ui.grid.total = data.length;
+					w2ui.grid.refresh();
+
+				}
+
+			});
+
+		}
+
+		function LoadTargetGroups(sfilter){
+
+			if (document.getElementById('map1').style.display != 'none'){
+				document.getElementById('map1').style.display = 'none';
+				document.getElementById('dataGrid').style.display = '';
+			}
+
+			var myDataURL = (g_prtcl + g_PGurl + '/targetgroup');
+
+			myDataURL += ((sfilter.length) ? ('?' + sfilter) : '');
+
+			w2ui.grid.clear();
+			w2ui.grid.show.lineNumbers = false;
+			w2ui.grid.columns = [
+							{ field: 'recid', caption: 'id', size: '40px', sortable: true },
+							{ field: 'name', caption: 'name', size: '20%', sortable: true },
+							{ field: 'description', caption: 'description', size: '20%', sortable: true },
+							{ field: 'ValidFrom', caption: 'validfrom', size: '90px', sortable: true },
+							{ field: 'ValidTo', caption: 'validto', size: '90px', sortable: true },
+							{ field: 'dateCreated', caption: 'dateCreated', size: '90px', sortable: true }
+						];
+			console.log(myDataURL);
+
+			$.ajax({
+				url: myDataURL,
+				success : function(data){
+
+					var w2Data = JSON.parse('{  "total":"' + (data.length) + '", "records":' + JSON.stringify(data).replace('organisationid','recid') + ' }');
+
+					w2ui.grid.records = JSON.parse(JSON.stringify(data).replace(/serviceid/g,'recid'));
+					w2ui.grid.total = data.length;
+					w2ui.grid.refresh();
+
+				}
+
+			});
+
+		}
+
+		function LoadServices(sfilter){
+
+			if (document.getElementById('map1').style.display != 'none'){
+				document.getElementById('map1').style.display = 'none';
+				document.getElementById('dataGrid').style.display = '';
+			}
+
+			var myDataURL = (g_prtcl + g_PGurl + '/service');
+
+			myDataURL += ((sfilter.length) ? ('?' + sfilter) : '');
+
+			w2ui.grid.clear();
+			w2ui.grid.show.lineNumbers = false;
+			w2ui.grid.columns = [
+							{ field: 'recid', caption: 'id', size: '40px', sortable: true },
+							{ field: 'name', caption: 'name', size: '20%', sortable: true },
+							{ field: 'description', caption: 'description', size: '20%', sortable: true },
+							{ field: 'ValidFrom', caption: 'validfrom', size: '90px', sortable: true },
+							{ field: 'ValidTo', caption: 'validto', size: '90px', sortable: true },
+							{ field: 'dateCreated', caption: 'dateCreated', size: '90px', sortable: true }
+						];
+			console.log(myDataURL);
+
+			$.ajax({
+				url: myDataURL,
+				success : function(data){
+
+					var w2Data = JSON.parse('{  "total":"' + (data.length) + '", "records":' + JSON.stringify(data).replace('organisationid','recid') + ' }');
+
+					w2ui.grid.records = JSON.parse(JSON.stringify(data).replace(/serviceid/g,'recid'));
+					w2ui.grid.total = data.length;
+					w2ui.grid.refresh();
+
+				}
+
+			});
+
+		}
+
+		function Loadtempimport(sfilter){
+
+			if (document.getElementById('map1').style.display != 'none'){
+				document.getElementById('map1').style.display = 'none';
+				document.getElementById('dataGrid').style.display = '';
+			}
+
+			var myDataURL = (g_prtcl + g_PGurl + '/tempimport');
+
+			myDataURL += ((sfilter.length) ? ('?' + sfilter) : '');
+
+			w2ui.grid.clear();
+			w2ui.grid.show.lineNumbers = false;
+			w2ui.grid.columns = [
+							{ field: 'recid', caption: 'id', size: '40px', sortable: true },
+							{ field: 'name', caption: 'name', size: '20%', sortable: true },
+							{ field: 'projects', caption: 'projects', size: '90px', sortable: true },
+							{ field: 'OrgLevel', caption: 'OrgLevel', size: '20%', sortable: true },
+							{ field: 'OrgType', caption: 'OrgType', size: '20%', sortable: true },
+							{ field: 'website', caption: 'website', size: '20%', sortable: true },
+							{ field: 'OrgLevel', caption: 'OrgLevel', size: '20%', sortable: true },
+						];
+
+			console.log(myDataURL);
+
+			$.ajax({
+				url: myDataURL,
+				success : function(data){
+
+					//var w2Data = JSON.parse('{  "total":"' + (data.length) + '", "records":' + JSON.stringify(data).replace('id','recid') + ' }');
+
+					w2ui.grid.records = JSON.parse(JSON.stringify(data).replace(/id/g,'recid'));
+					w2ui.grid.total = data.length;
+					w2ui.grid.refresh();
+
+				}
+
+			});
+
+		}
+
+		function generateUUID () { // Public Domain/MIT
+			var sReturn = "";
+			var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+			for( var i=0; i < 11; i++ )
+				sReturn += possible.charAt(Math.floor(Math.random() * possible.length));
+
+			return sReturn;
+		}
+
+		function loadCoordinatePoints(data){
+		
+			clearMarkersOrgMap();
+	
+			var geojson = {
+				type: 'FeatureCollection',
+				crs: {
+					type: 'EPSG',
+					properties: {
+						code: '4326'
+					}
+				},
+				features: []
+			};
+
+			for (var i = 0; i < data.length; i++) {
+
+				if ( ((data[i]['geometry.coordinates']) != null) && ((data[i]['geometry.coordinates']) !== undefined) ) {
+
+					geojson.features.push({
+						type: 'Feature',
+						geometry: {
+							type: data[i]['geometry.type'], //parseInt(ou.ty) === 1 ? 'Point' : 'MultiPolygon',
+							coordinates: JSON.parse(data[i]['geometry.coordinates'])  //coordinates: JSON.parse(data[i].long + "," + data[i].lat)
+						},
+						properties: {
+							id: data[i].organisationid,
+							name: data[i].name,
+							shortName: '',
+							hasCoordinatesDown: 0,
+							hasCoordinatesUp: 0,
+							level: 1,
+							grandParentParentGraph: '',
+							grandParentId: 0,
+							parentGraph: '',
+							parentId: 0,
+							parentName: '',
+							value: '',
+							numerator: '',
+							denominator: '',
+							type: ''
+						} 
+					});
+
+				}
+
+			}
+
+			if (g_geoJSONlayerObj){
+				g_map.removeLayer(g_geoJSONlayerObj);
+			}
+
+			g_geoJSONlayerObj = L.geoJson(geojson, {
+				style: AdaptStyle,
+				pointToLayer: function(feature, latlng) {
+					//return new L.marker(latlng, {icon: L.AwesomeMarkers.icon({icon: 'star',  prefix: 'glyphicon',markerColor: 'cadetblue'}) });
+					return new L.marker(latlng, {});
+				},
+				onEachFeature: onEachFeature
+			}).addTo(g_map);
+
+		}
+
+	});
+
+	function getTopContent(){
+		//return ("<nav class='navbar navbar-static-top navbar-dark bg-inverse' style='padding:8px 0px 0px 12px;overflow:hidden;scroll:no;font-size:24px;color:#fff;border-radius:0'><img src='img/sanaclogo.png' style='width:30px;height:30px;position:relative;top:-2px;left:-4px;'></a>Focus for Impact: Service Mapper (data browser) </nav>");
+		return ("<nav class='navbar navbar-static-top navbar-dark bg-inverse' style='padding:10px 0px 2px 16px;overflow:hidden;scroll:no;font-size:24px;color:#fff;border-radius:0;height:100%;'><img src='img/sanaclogo.png' style='width:30px;height:30px;position:relative;top:-2px;left:-6px;'></a>Focus for Impact: Service Mapper (data browser) </nav>");
+	}
+
+	function onEachFeature(feature, layer) {
+
+		var lblIconClassName = 'labelpointerrank'; //'labelrank'
+
+		var myIcon = L.divIcon({ iconSize: new L.Point(20, 20), className: lblIconClassName, 
+			html: ('<div style="" data-value="' + layer.feature.properties['value'] + '">' + (isNumeric(layer.feature.properties[g_LabelField]) ? parseFloat(layer.feature.properties[g_LabelField]).toFixed(2).replace('.00','') : layer.feature.properties[g_LabelField] ) + '</div>')
+			});
+
+		layer.on({
+			mouseover: highlightFeature,
+			mouseout: resetHighlight,
+			click: zoomToFeature
+		});
+	}
+	
+
+	function AdaptStyle(feature) {
+
+		return {
+			weight: 1,
+			opacity: 0.95, 
+			color: '#808080', 
+			dashArray: '0',
+			fillOpacity: 0.75,
+			fillColor: '#005EFF', 
+			radius: 5,
+			className: 'pointShadow'
+		}
+
+		//	zIndex: ( (g_bScalePointRadiusToNumerator) ? feature.properties['rank.numerator'] : ( (g_bScalePointRadiusToDenominator) ? feature.properties['rank.denominator'] : ( (g_bScalePointRadiusToOutcome) ? feature.properties['rank.value'] : feature.properties['zIdx'] ) ) ), 
+
+	}
+
+	function resetHighlight(e) {
+		g_infoControl.update();
+		g_geoJSONlayerObj.resetStyle(e.target);
+	}
+
+	function highlightFeature(e) {
+
+		var layer = e.target;
+		var FillOp = 0.75; 
+		var updateInfo = 1;
+
+		layer.setStyle({
+			weight: 3, 
+			color: '#3A5C8A', 
+			opacity: 1,
+			fillOpacity: 0.5 
+		});
+		if (updateInfo){
+			g_infoControl.update(layer.feature.properties);
+		}
+
+	}
+
+	function ReturnHTMLpreview(myJSONtoString){
+
+		if (myJSONtoString != undefined){
+
+			var MyNewString = myJSONtoString.toString().replace(/{/g,'');
+			MyNewString = MyNewString.replace(/}/g,'');
+			MyNewString = MyNewString.replace(/"/g,'');
+			var myNewArr = MyNewString.split(",");
+
+
+			for(i = 0; i < myNewArr.length; i++) {
+
+				var myInnerObj = myNewArr[i].split(":");
+
+				if (myInnerObj[0].indexOf("name") == 0){
+					var myName = myInnerObj[1];
+				}
+
+			}
+
+			var myInnerObj = myNewArr[0].split(":");
+
+			var dvParent = document.createElement('div');
+			dvParent.setAttribute('style', 'padding:4px;');
+
+			var dv = document.createElement('div');
+			dv.setAttribute('style', 'font-size:7pt;color:#808080;');
+			dvParent.appendChild(dv);
+
+			var tbl = document.createElement('table');
+			tbl.setAttribute('style', 'padding:0 4px 8px 4px;width:100%;height:14px;');
+			dv.appendChild(tbl);
+
+			var tr = document.createElement('tr');
+			tbl.appendChild(tr);
+
+			var td = document.createElement('td');
+			td.setAttribute('style', 'font-size:7pt;font-weight:700;padding:0 0 2px 0;color:#404040;font-style:italic;');
+			tr.appendChild(td);
+
+			var dv = document.createElement('div');
+			dv.setAttribute('style', 'color:#000000;font-family:Roboto;font-size:10pt;font-weight:700;height:20px;overflow-y:hidden;');
+			dvParent.appendChild(dv);
+
+			var txt = document.createTextNode(myName);
+			dv.appendChild(txt);
+			
+			dv.innerHTML = myInnerObj[1];
+
+		}
+
+		return (dvParent.innerHTML);
+
+	}
+
+
+	function zoomToFeature(e) {
+
+		var layer = e.target;
+
+		g_geoJSONlayerCurrentFeature = layer;
+		g_OrgUnitSelectedID = (layer.feature.properties['id']);
+
+		var g_popupControl = L.popup({className: 'floatinfo'})
+			.setLatLng( L.latLng(e.latlng.lat, e.latlng.lng) )
+			.setContent(GetLayerPopupPreview(layer))
+			.openOn(g_map);
+			
+		// show mouse-over summary
+		//g_infoControl.update(layer.feature.properties);
+		// do not show mouse-over summary
+		g_infoControl.update();
+
+
+
+	}
+
+	function GetLayerPopupPreview(layer,bExcludeButtons){
+
+		return "<div style='padding:2px;font-size:10px;'>" + layer.feature.properties['name'] + "<br>" + layer.feature.geometry['coordinates'] + "</div>";
+	
+	}
+
+	function isNumeric(n) {
+	  return !isNaN(parseFloat(n)) && isFinite(n);
+	}
+
+</script>
+
+
+
+</body>
+</html>
